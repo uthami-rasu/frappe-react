@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { isDeal } from '../../features/catalog/catalogQuery'
+import { discountPercent, isDeal } from '../../features/catalog/catalogQuery'
 import type { CatalogProduct } from '../../types/catalog'
 import { Price } from '../ui/Price'
 import { Rating } from '../ui/Stars'
@@ -33,18 +33,21 @@ export const ProductTile = memo(function ProductTile({ product, layout = 'grid',
         />
       </a>
       <div className="sf-tile-badges">
-        {isDeal(product) && <span className="sf-badge sf-badge-deal">Deal</span>}
-        {product.badge && <span className="sf-badge sf-badge-brand">{product.badge}</span>}
+        {isDeal(product) ? (
+          <span className="sf-badge sf-badge-deal">{discountPercent(product)}% off</span>
+        ) : (
+          product.badge && <span className="sf-badge sf-badge-brand">{product.badge}</span>
+        )}
       </div>
       <div className="sf-tile-wish"><WishlistButton product={product} /></div>
       <div className="sf-tile-body">
         <span className="sf-tile-meta">{reason ?? [product.category, product.size].filter(Boolean).join(' · ')}</span>
         <a id={`tile-${product.id}`} href={href} className="sf-tile-name">{product.name}</a>
         {layout === 'list' && product.subtitle && <p className="sf-tile-sub">{product.subtitle}</p>}
-        <Rating rating={product.rating} reviews={product.reviews} size={13} compact={layout === 'compact'} />
+        <div className="sf-tile-rating">{product.reviews > 0 && <Rating rating={product.rating} reviews={product.reviews} size={14} />}</div>
         <div className="sf-tile-foot">
           <Price price={product.price} compareAtPrice={product.compareAtPrice} size={layout === 'list' ? 'md' : 'sm'} />
-          {stock.tone !== 'in' && <span className={`sf-stock sf-stock-${stock.tone}`}>{stock.label}</span>}
+          <div className="sf-tile-stock">{stock.tone !== 'in' && <span className={`sf-stock sf-stock-${stock.tone}`}>{stock.label}</span>}</div>
           {showAdd && <AddToCartButton product={product} className="sf-btn sf-btn-accent sf-btn-sm sf-btn-block" />}
         </div>
       </div>

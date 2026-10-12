@@ -28,8 +28,8 @@ export function ShopRails() {
   }, [products, wishlist, recentlyViewed])
 
   return (
-    <div className="bg-[var(--sf-canvas)]">
-      <div className="sf-container">
+    <div className="bg-[var(--sf-canvas)] py-6 sm:py-10">
+      <div className="sf-container grid gap-6 sm:gap-8">
         <ProductRail id="best-sellers" title="Best sellers" eyebrow="Most ordered this season" products={rails.bestSellers} isLoading={isLoading} viewAllHref="#honey?sort=popular" />
         <ProductRail id="deals" title="Today’s deals" eyebrow="Marked down" products={rails.deals} viewAllHref="#honey?deals=1" />
         <ProductRail id="recommended" title="Recommended for you" eyebrow="Based on your browsing" products={rails.recommended} />
@@ -45,7 +45,7 @@ export function RecentlyViewedRail() {
   const recent = recentlyViewed.map((id) => products.find((product) => product.id === id)).filter((product): product is CatalogProduct => Boolean(product))
   if (!recent.length) return null
   return (
-    <div className="bg-white dark:bg-stone-950">
+    <div className="bg-[var(--sf-canvas)] py-6 sm:py-10">
       <div className="sf-container">
         <ProductRail id="recently-viewed" title="Your browsing history" eyebrow="Recently viewed" products={recent} />
       </div>

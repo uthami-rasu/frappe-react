@@ -36,7 +36,7 @@ export function ProductRail({ title, eyebrow, products, isLoading = false, viewA
   const headingId = `${id ?? title.replace(/\W+/g, '-').toLowerCase()}-title`
 
   return (
-    <section className="sf-section !py-7" aria-labelledby={headingId} id={id}>
+    <section className="sf-shelf" aria-labelledby={headingId} id={id}>
       <div className="sf-section-head">
         <div>
           {eyebrow && <span className="sf-eyebrow">{eyebrow}</span>}
@@ -44,7 +44,7 @@ export function ProductRail({ title, eyebrow, products, isLoading = false, viewA
         </div>
         <div className="flex items-center gap-3">
           {action}
-          {viewAllHref && <a className="sf-link text-sm" href={viewAllHref}>See all</a>}
+          {viewAllHref && <a className="sf-shelf-link" href={viewAllHref}>See all <ChevronRight size={15} aria-hidden="true" /></a>}
           <div className="sf-rail-nav">
             <button type="button" onClick={() => scroll(-1)} disabled={edges.start} aria-label={`Scroll ${title} left`}><ChevronLeft size={18} /></button>
             <button type="button" onClick={() => scroll(1)} disabled={edges.end} aria-label={`Scroll ${title} right`}><ChevronRight size={18} /></button>
@@ -54,7 +54,7 @@ export function ProductRail({ title, eyebrow, products, isLoading = false, viewA
       <div className="sf-rail" ref={railRef} onScroll={updateEdges} data-lenis-prevent-horizontal>
         {isLoading
           ? Array.from({ length: 5 }, (_, index) => <ProductTileSkeleton key={index} />)
-          : products.map((product) => <ProductTile key={product.id} product={product} layout="compact" />)}
+          : products.map((product) => <ProductTile key={product.id} product={product} />)}
       </div>
     </section>
   )

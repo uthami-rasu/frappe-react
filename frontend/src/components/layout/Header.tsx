@@ -42,6 +42,8 @@ function CartLink() {
   )
 }
 
+const pageLinks = navItems.filter((item) => item.href !== '#honey')
+
 const CategoryBar = memo(function CategoryBar() {
   const { categories } = useCatalog()
   const route = useRoute()
@@ -50,6 +52,7 @@ const CategoryBar = memo(function CategoryBar() {
   return (
     <nav className="sf-catbar" aria-label="Shop by category">
       <div className="sf-catbar-inner mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-12">
+        <span className="sf-catbar-cats">
         <a href="#honey" aria-current={route.path === 'honey' && !current && !route.params.get('deals') && !route.params.get('sort') ? 'page' : undefined}><LayoutGrid size={14} /> All products</a>
         <a href="#honey?deals=1" aria-current={route.params.get('deals') === '1' ? 'page' : undefined}><BadgePercent size={14} /> Today’s deals</a>
         <a href="#honey?sort=popular" aria-current={route.path === 'honey' && route.params.get('sort') === 'popular' ? 'page' : undefined}><TrendingUp size={14} /> Best sellers</a>
@@ -58,6 +61,12 @@ const CategoryBar = memo(function CategoryBar() {
             {category.name}
           </a>
         ))}
+        </span>
+        <span className="sf-catbar-pages">
+          {pageLinks.map(({ label, href, icon: Icon }) => (
+            <a key={label} href={href}><Icon size={14} aria-hidden="true" /> {label}</a>
+          ))}
+        </span>
       </div>
     </nav>
   )
@@ -110,18 +119,10 @@ export function Header() {
           <SearchBox key={searchKey} initialQuery={route.path === 'honey' ? route.params.get('q') ?? '' : ''} />
         </div>
 
-        <nav className="hidden items-center gap-1 2xl:flex" aria-label="Main navigation">
-          {navItems.map(({ label, href, icon: Icon }) => (
-            <a className="nav-icon-link group" href={href} key={label}>
-              <Icon size={15} strokeWidth={1.8} /><span>{label}</span>
-            </a>
-          ))}
-        </nav>
-
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:ml-0">
           {/* wrappers carry the breakpoints: .icon-button's own display rule would override them */}
           <span className="md:hidden"><button className="icon-button" aria-label="Search" type="button" onClick={() => setIsSearchOpen(true)}><Search size={19} /></button></span>
-          <a href="#account" className="hidden flex-col rounded-lg px-2 py-1 leading-tight hover:bg-stone-100 lg:flex dark:hover:bg-stone-900" aria-label={user ? `My account (${user.fullName})` : 'Sign in or create an account'}>
+          <a href="#account" className="hidden flex-col whitespace-nowrap rounded-lg px-2 py-1 leading-tight hover:bg-stone-100 lg:flex dark:hover:bg-stone-900" aria-label={user ? `My account (${user.fullName})` : 'Sign in or create an account'}>
             <span className="text-[11px] text-stone-500 dark:text-stone-400">{greeting}</span>
             <span className="text-[13px] font-bold text-[#173f32] dark:text-stone-100">Account &amp; orders</span>
           </a>
@@ -137,7 +138,7 @@ export function Header() {
             </a>
           </span>
           <CartLink />
-          <span className="2xl:hidden"><button
+          <span className="xl:hidden"><button
             className="icon-button"
             aria-label="Menu"
             aria-expanded={isMenuOpen}
@@ -151,7 +152,7 @@ export function Header() {
       </div>
       <CategoryBar />
       {isMenuOpen && (
-        <nav id="mobile-navigation" className="border-t border-stone-100 bg-white px-5 py-4 shadow-lg dark:border-stone-800 dark:bg-stone-950" aria-label="Site navigation">
+        <nav id="mobile-navigation" className="border-t border-stone-100 bg-white px-5 py-4 shadow-lg xl:hidden dark:border-stone-800 dark:bg-stone-950" aria-label="Site navigation">
           {navItems.map(({ label, href, icon: Icon }) => (
             <a className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-900" href={href} key={label}>
               <Icon size={17} /> {label}

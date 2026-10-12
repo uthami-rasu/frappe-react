@@ -59,14 +59,14 @@ function App() {
   const pageKey = productSlug !== null ? `product/${productSlug}` : path
   const previousPage = useRef<string | null>(null)
   useEffect(() => {
-    const isFirst = previousPage.current === null
     if (previousPage.current === pageKey) return
     previousPage.current = pageKey
-    // '#favorites', '#trending', … are sections of the home page
+    // '#favorites', '#trending', … are sections of the home page; everything else opens at the top,
+    // including the first load (the browser would otherwise restore an old scroll position)
     const section = !PAGE_PATHS.has(path) ? document.getElementById(path) : null
     if (section) {
       window.requestAnimationFrame(() => scrollToTarget(section))
-    } else if (!isFirst) {
+    } else {
       scrollToTarget(0)
     }
   }, [pageKey, path])

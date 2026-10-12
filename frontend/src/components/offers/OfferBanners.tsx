@@ -33,7 +33,7 @@ export function OfferBanners() {
   const banners = (offers ?? []).filter((offer) => offer.placement === 'Home Banner').slice(0, 3)
   if (isError || (!isLoading && !banners.length)) return null
   return (
-    <section className="sf-container py-8" aria-label="Current offers">
+    <section className="sf-container relative z-20 pb-2 pt-12" aria-label="Current offers">
       <div className={`grid gap-4 ${banners.length > 1 ? 'md:grid-cols-2' : ''}`}>
         {isLoading ? <><Skeleton className="h-44 rounded-[22px]" /><Skeleton className="hidden h-44 rounded-[22px] md:block" /></> : banners.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
       </div>

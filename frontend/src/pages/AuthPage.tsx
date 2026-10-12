@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, MailCheck } from 'lucide-react'
+import { ArrowLeft, MailCheck } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { AuthLayout } from '../components/auth/AuthLayout'
@@ -177,17 +177,16 @@ export function AuthPage({ initialMode = 'login', next = '#account' }: AuthPageP
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [forgotEmail, setForgotEmail] = useState('')
   const titles: Record<AuthMode, [string, string]> = {
-    login: ['Sign in', 'Welcome back. Sign in to see your orders, wishlist and saved addresses.'],
+    login: ['Welcome back', 'Sign in to see your orders, invoices, wishlist and saved addresses.'],
     register: ['Create your account', 'It takes less than a minute.'],
     forgot: ['Reset your password', 'Enter the email you registered with and we’ll send you a link to choose a new password.'],
   }
   return (
     <AuthLayout title={titles[mode][0]} subtitle={titles[mode][1]}>
       {mode !== 'forgot' && (
-        <div className="mb-6 grid grid-cols-2 rounded-full bg-[var(--sf-surface-alt)] p-1 text-sm font-bold" role="tablist" aria-label="Account">
+        <div className="sf-auth-tabs mb-7" role="tablist" aria-label="Account">
           {(['login', 'register'] as const).map((tab) => (
-            <button key={tab} type="button" role="tab" aria-selected={mode === tab} onClick={() => setMode(tab)}
-              className={`rounded-full py-2.5 transition ${mode === tab ? 'bg-[#173f32] text-white shadow' : 'text-[#315545] hover:text-[#173f32]'}`}>
+            <button key={tab} type="button" role="tab" aria-selected={mode === tab} onClick={() => setMode(tab)}>
               {tab === 'login' ? 'Sign in' : 'Create account'}
             </button>
           ))}
@@ -196,7 +195,14 @@ export function AuthPage({ initialMode = 'login', next = '#account' }: AuthPageP
       {mode === 'login' && <LoginForm next={next} onForgot={(email) => { setForgotEmail(email); setMode('forgot') }} onRegister={() => setMode('register')} />}
       {mode === 'register' && <RegisterForm next={next} onLogin={() => setMode('login')} />}
       {mode === 'forgot' && <ForgotForm initialEmail={forgotEmail} onBack={() => setMode('login')} />}
-      {mode !== 'forgot' && <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-[var(--sf-muted)]"><CheckCircle2 size={13} /> We never share your details.</p>}
+      {mode === 'login' && (
+        <>
+          <p className="sf-auth-divider">or</p>
+          <a href={next === '#checkout' ? '#checkout' : '#honey'} className="sf-btn sf-btn-outline sf-btn-block">
+            {next === '#checkout' ? 'Continue to checkout as a guest' : 'Continue shopping as a guest'}
+          </a>
+        </>
+      )}
     </AuthLayout>
   )
 }

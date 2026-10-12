@@ -120,7 +120,7 @@ export function TrendingSection() {
             <div className="absolute -bottom-32 -left-16 -z-10 size-[340px] rounded-full bg-[#d39a4b]/15 blur-2xl" />
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-2 text-[9px] font-bold uppercase tracking-[.16em] text-[#efd6a4]"><Sparkles size={12} /> Editor&apos;s pick</span>
-              <span className="flex items-center gap-1 text-xs text-[#f1d38f]"><Star size={13} fill="currentColor" /> {activeProduct.rating}</span>
+              {activeProduct.reviews > 0 && <span className="flex items-center gap-1 text-xs text-[#f1d38f]" aria-label={`${activeProduct.rating.toFixed(1)} out of 5 stars`}><Star size={13} fill="currentColor" aria-hidden="true" /> {activeProduct.rating.toFixed(1)}</span>}
             </div>
 
             <div className="relative flex flex-1 items-center justify-center py-8">

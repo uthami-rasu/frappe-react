@@ -19,10 +19,10 @@ export const HomePage = memo(function HomePage() {
   return (
     <main>
       <HeroSection />
-      <OfferBanners />
       <div className="relative isolate flow-root bg-stone-50 dark:bg-stone-950">
         <NutDecorations />
         <BenefitsSection />
+        <OfferBanners />
         <FavoritesSection />
       </div>
       <RenderWhenVisible minHeight={900}><ShopRails /></RenderWhenVisible>

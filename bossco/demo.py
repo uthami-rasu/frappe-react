@@ -86,7 +86,7 @@ DEMO_OFFERS = [
 			},
 			{
 				"title": "Welcome offer: 10% off",
-				"description": "Orders over ₹999 · one use per customer",
+				"description": "Take 10% off your first order with us.",
 				"placement": "Home Banner",
 				"audience": "Everyone",
 				"priority": 10,
