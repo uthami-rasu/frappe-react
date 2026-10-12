@@ -10,16 +10,16 @@ app_license = "mit"
 
 # required_apps = []
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "bossco",
-# 		"logo": "/assets/bossco/logo.png",
-# 		"title": "Bossco",
-# 		"route": "/bossco",
-# 		"has_permission": "bossco.api.permission.has_app_permission"
-# 	}
-# ]
+# Shown as "Bossco Store" on the Desk apps screen; opens the Store dashboard (bossco/desk.py)
+add_to_apps_screen = [
+	{
+		"name": "bossco",
+		"logo": "/assets/bossco/images/store-logo.png",
+		"title": "Bossco Store",
+		"route": "/app/store",
+		"has_permission": "bossco.desk.has_app_permission",
+	}
+]
 
 # Includes in <head>
 # ------------------

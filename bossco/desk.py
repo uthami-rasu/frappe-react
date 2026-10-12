@@ -143,6 +143,11 @@ CARDS = {
 }
 
 
+def has_app_permission():
+	"""Who sees the Bossco Store tile on the apps screen: anyone who can work in Desk."""
+	return frappe.session.user != "Guest" and "System Manager" in frappe.get_roles()
+
+
 def setup_desk():
 	make_number_cards()
 	make_chart()
