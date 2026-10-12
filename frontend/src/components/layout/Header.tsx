@@ -119,21 +119,26 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:ml-0">
-          <button className="icon-button md:hidden" aria-label="Search" type="button" onClick={() => setIsSearchOpen(true)}><Search size={19} /></button>
+          {/* wrappers carry the breakpoints: .icon-button's own display rule would override them */}
+          <span className="md:hidden"><button className="icon-button" aria-label="Search" type="button" onClick={() => setIsSearchOpen(true)}><Search size={19} /></button></span>
           <a href="#account" className="hidden flex-col rounded-lg px-2 py-1 leading-tight hover:bg-stone-100 lg:flex dark:hover:bg-stone-900" aria-label={user ? `My account (${user.fullName})` : 'Sign in or create an account'}>
             <span className="text-[11px] text-stone-500 dark:text-stone-400">{greeting}</span>
             <span className="text-[13px] font-bold text-[#173f32] dark:text-stone-100">Account &amp; orders</span>
           </a>
-          <a className="icon-button lg:hidden" aria-label={user ? `My account (${user.fullName})` : 'Account'} href="#account">
-            {user ? <span className="grid size-[26px] place-items-center rounded-full bg-[#173f32] text-[11px] font-bold text-[#f0d59f]">{(user.firstName || user.email)[0].toUpperCase()}</span> : <UserRound size={19} />}
-          </a>
-          <a className="icon-button relative hidden sm:grid" aria-label={`Wishlist, ${wishlistCount} saved`} href="#wishlist">
-            <Heart size={19} />
-            {wishlistCount > 0 && <span className="header-count" aria-hidden="true">{wishlistCount}</span>}
-          </a>
+          <span className="lg:hidden">
+            <a className="icon-button" aria-label={user ? `My account (${user.fullName})` : 'Account'} href="#account">
+              {user ? <span className="grid size-[26px] place-items-center rounded-full bg-[#173f32] text-[11px] font-bold text-[#f0d59f]">{(user.firstName || user.email)[0].toUpperCase()}</span> : <UserRound size={19} />}
+            </a>
+          </span>
+          <span className="hidden sm:inline-flex">
+            <a className="icon-button relative" aria-label={`Wishlist, ${wishlistCount} saved`} href="#wishlist">
+              <Heart size={19} />
+              {wishlistCount > 0 && <span className="header-count" aria-hidden="true">{wishlistCount}</span>}
+            </a>
+          </span>
           <CartLink />
-          <button
-            className="icon-button 2xl:hidden"
+          <span className="2xl:hidden"><button
+            className="icon-button"
             aria-label="Menu"
             aria-expanded={isMenuOpen}
             aria-controls="mobile-navigation"
@@ -141,7 +146,7 @@ export function Header() {
             type="button"
           >
             {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          </button></span>
         </div>
       </div>
       <CategoryBar />

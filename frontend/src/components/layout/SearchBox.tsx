@@ -106,7 +106,7 @@ export const SearchBox = memo(function SearchBox({ initialQuery = '', initialCat
             const index = categoryOffset + position
             return (
               <a key={category.name} id={`${listId}-c-${category.name}`} role="option" aria-selected={active === index} className="sf-suggest-item" href={buildHash('honey', { category: category.name })} onClick={() => setOpen(false)}>
-                <Search size={16} className="text-[var(--sf-muted)]" /> <span><Highlight text={category.name} query={query} /> <span className="sf-hint">· {category.count} products</span></span>
+                <Search size={16} className="text-[var(--sf-muted)]" /> <span><Highlight text={category.name} query={query} /> <span className="sf-hint">· {category.count} {category.count === 1 ? 'product' : 'products'}</span></span>
               </a>
             )
           })}

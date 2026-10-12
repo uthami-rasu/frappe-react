@@ -1,3 +1,4 @@
+import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 from bossco.email_templates import make_email_templates
@@ -6,11 +7,24 @@ from bossco.email_templates import make_email_templates
 def after_install():
 	make_custom_fields()
 	make_email_templates()
+	set_settings_defaults()
 
 
 def after_migrate():
 	make_custom_fields()
 	make_email_templates()
+	set_settings_defaults()
+
+
+def set_settings_defaults():
+	"""Single DocTypes only store values once saved; write each field's default the first time
+	(including fields added in later versions) so features default to on, as designed."""
+	doctype = "Storefront Settings"
+	saved = set(frappe.db.sql_list("select field from `tabSingles` where doctype = %s", doctype))
+	for df in frappe.get_meta(doctype).fields:
+		if df.default is not None and df.fieldname not in saved:
+			frappe.db.set_single_value(doctype, df.fieldname, df.default)
+	frappe.clear_cache(doctype=doctype)
 
 
 def make_custom_fields():

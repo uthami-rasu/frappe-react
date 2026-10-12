@@ -5,9 +5,11 @@
 Needs the demo catalog (bench --site <site> execute bossco.demo.seed). Everything is rolled back.
 """
 
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_days, cint, flt, now_datetime, today
+from frappe.utils import add_days, flt, now_datetime, today
 
 from bossco import account, api, cart, offers, orders, reviews
 from bossco.customers import ensure_customer_for_user
@@ -84,19 +86,12 @@ class StorefrontTestCase(FrappeTestCase):
 		cls.product, cls.other = products[0], products[1]
 		cls.user = make_shopper("storefront-test@example.com")
 		cls.user_two = make_shopper("storefront-test-two@example.com")
-		if not frappe.db.exists("Email Account", {"default_outgoing": 1, "enable_outgoing": 1}):
-			frappe.get_doc(
-				{
-					"doctype": "Email Account",
-					"email_id": "storefront-test-outgoing@example.com",
-					"email_account_name": "Storefront Test Outgoing",
-					"enable_outgoing": 1,
-					"default_outgoing": 1,
-					"smtp_server": "localhost",
-					"smtp_port": "25",
-					"no_smtp_authentication": 1,
-				}
-			).insert(ignore_permissions=True)
+		# Capture emails instead of sending: sending (now=True) commits, which would bypass the
+		# rollback that keeps these tests from leaving data on the site.
+		cls.sent = []
+		cls.mail_patch = patch("frappe.sendmail", side_effect=lambda **kwargs: cls.sent.append(kwargs))
+		cls.mail_patch.start()
+		cls.addClassCleanup(cls.mail_patch.stop)
 
 	def setUp(self):
 		frappe.db.set_single_value(
@@ -224,14 +219,12 @@ class TestInvoices(StorefrontTestCase):
 	def test_confirmation_email_is_sent_once(self):
 		order = self.order()
 		frappe.set_user("Administrator")
+		self.sent.clear()
 		orders.send_order_confirmation(order["name"])
 		orders.send_order_confirmation(order["name"])
-		self.assertEqual(
-			frappe.db.count(
-				"Email Queue", {"reference_doctype": "Sales Order", "reference_name": order["name"]}
-			),
-			1,
-		)
+		self.assertEqual([mail["reference_name"] for mail in self.sent], [order["name"]])
+		self.assertEqual(self.sent[0]["recipients"], [self.user])
+		self.assertIn(order["name"], self.sent[0]["subject"])
 
 
 class TestReviews(StorefrontTestCase):
@@ -344,10 +337,8 @@ class TestAccount(StorefrontTestCase):
 
 	def test_reset_link_points_to_the_storefront(self):
 		frappe.set_user("Administrator")
+		self.sent.clear()
 		account.send_password_reset(self.user)
-		queued = frappe.get_last_doc(
-			"Email Queue", filters={"reference_doctype": "User", "reference_name": self.user}
-		)
-		self.assertIn("#reset-password?key=", queued.message)
+		self.assertEqual(len(self.sent), 1)
+		self.assertIn("/#reset-password?key=", self.sent[0]["message"])
 		self.assertTrue(frappe.db.get_value("User", self.user, "reset_password_key"))
-		self.assertEqual(cint(frappe.db.count("Email Queue", {"reference_name": self.user})) >= 1, True)

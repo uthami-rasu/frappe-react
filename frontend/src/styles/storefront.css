@@ -4,6 +4,9 @@
  * product tiles, rails, drawers, forms and dialogs. Page-specific styles stay in index.css.
  */
 
+/* Layered so Tailwind utilities on the same element can still override these */
+@layer components {
+
 :root {
   --sf-ink: #1c2b24;
   --sf-ink-soft: #4f5b55;
@@ -202,8 +205,8 @@ textarea.sf-input { min-height: 120px; padding: 12px 14px; resize: vertical; }
 
 /* Price */
 .sf-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; color: var(--sf-ink); }
-.sf-price-now { display: inline-flex; align-items: flex-start; font-weight: 700; letter-spacing: -.01em; }
-.sf-price-now sup { margin-top: .32em; margin-right: 1px; font-size: .55em; font-weight: 600; }
+.sf-price-now { display: inline-flex; align-items: baseline; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
+.sf-price-now sup { position: relative; top: -.42em; margin-right: 1px; font-size: .58em; font-weight: 600; line-height: 0; }
 .sf-price-sm .sf-price-now { font-size: 19px; }
 .sf-price-md .sf-price-now { font-size: 24px; }
 .sf-price-lg .sf-price-now { font-size: 32px; }
@@ -611,6 +614,7 @@ textarea.sf-input { min-height: 120px; padding: 12px 14px; resize: vertical; }
 .sf-offer-code button { padding: 4px 8px; border-radius: 6px; background: rgba(255, 255, 255, .14); color: #fff; font-family: var(--font-sans); font-size: 11px; letter-spacing: 0; }
 .sf-offer-code button:hover { background: rgba(255, 255, 255, .24); }
 .sf-countdown { font-size: 12px; font-weight: 700; color: #f6dca8; font-variant-numeric: tabular-nums; }
+.sf-countdown-on-light .sf-countdown { color: var(--sf-warning); }
 
 /* Review bars */
 .sf-bars { display: grid; gap: 8px; }
@@ -639,4 +643,5 @@ textarea.sf-input { min-height: 120px; padding: 12px 14px; resize: vertical; }
   .sf-overlay, .sf-drawer-right, .sf-drawer-left, .sf-dialog, .sf-cart-line.is-new {
     animation: none !important;
   }
+}
 }

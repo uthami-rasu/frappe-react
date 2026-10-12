@@ -50,7 +50,7 @@ function LoginForm({ next, onForgot, onRegister }: { next: string; onForgot: (em
       toast.success(`Welcome back, ${session.user?.firstName || 'friend'}!`)
       window.location.hash = next
     } catch (error) {
-      setFormError(errorText(error) === 'Invalid Login. Try again.' ? 'That email and password don’t match. Try again or reset your password.' : errorText(error))
+      setFormError(/invalid login/i.test(errorText(error)) ? 'That email and password don’t match. Try again or reset your password.' : errorText(error))
     }
   }
 

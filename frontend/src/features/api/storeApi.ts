@@ -54,8 +54,13 @@ export function getFrappeErrorMessage(data: unknown) {
   return 'Something went wrong. Please try again.'
 }
 
-const errorMessage = (error: { data?: unknown; status?: unknown }) =>
-  error.status === 'FETCH_ERROR' ? 'You seem to be offline. Check your connection and try again.' : getFrappeErrorMessage(error.data)
+// Validation messages (frappe.throw, 4xx) are written for shoppers; server errors (5xx) can
+// describe internals such as mail server setup, so shoppers get a generic message instead.
+const errorMessage = (error: { data?: unknown; status?: unknown }) => {
+  if (error.status === 'FETCH_ERROR') return 'You seem to be offline. Check your connection and try again.'
+  if (typeof error.status === 'number' && error.status >= 500) return 'Something went wrong on our side. Please try again in a little while.'
+  return getFrappeErrorMessage(error.data)
+}
 
 const unwrap = <T,>(response: { message: T }) => response.message
 
@@ -137,7 +142,8 @@ export const storeApi = createApi({
       transformResponse: unwrap<PlacedOrder>,
       transformErrorResponse: errorMessage,
       // stock is reserved and new addresses may have been saved
-      invalidatesTags: ['Order', 'Catalog', 'Address', 'Offers'],
+      // a purchase can make the shopper eligible to review, and changes offers for new customers
+      invalidatesTags: ['Order', 'Catalog', 'Address', 'Offers', 'Reviews'],
     }),
 
     getSession: build.query<Session, void>({

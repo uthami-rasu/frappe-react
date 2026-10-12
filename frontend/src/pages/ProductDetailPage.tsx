@@ -45,7 +45,7 @@ function Gallery({ product, images }: { product: CatalogProduct; images: string[
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-[64px_1fr] md:items-start">
+    <div className={`grid gap-3 md:items-start ${images.length > 1 ? 'md:grid-cols-[64px_1fr]' : ''}`}>
       {images.length > 1 && (
         <div className="order-2 flex gap-2 overflow-x-auto md:order-1 md:flex-col" role="group" aria-label="Product images">
           {images.map((image, imageIndex) => (
@@ -118,7 +118,7 @@ function ProductOffers({ product }: { product: CatalogProduct }) {
           {offer.description && <p className="mt-1 text-[13px] text-[var(--sf-ink-soft)]">{offer.description}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-3">
             {offer.couponCode && <span className="rounded-lg bg-[#173f32] p-0.5"><OfferCode code={offer.couponCode} /></span>}
-            <span className="[&_.sf-countdown]:text-[var(--sf-warning)]"><OfferExpiry expiresAt={offer.expiresAt} /></span>
+            <span className="sf-countdown-on-light"><OfferExpiry expiresAt={offer.expiresAt} /></span>
             {offerTerms(offer) && <span className="sf-hint">{offerTerms(offer)}</span>}
           </div>
         </div>

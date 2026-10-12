@@ -138,7 +138,7 @@ export function CheckoutPage({ products }: { products: CatalogProduct[] }) {
                   </p>
                   <label className="span-2">
                     PHONE NUMBER
-                    <input required name="phone" type="tel" autoComplete="tel" placeholder="Phone number" defaultValue={user.phone} />
+                    <input required name="phone" type="tel" autoComplete="tel" placeholder="Phone number" key={addresses.length} defaultValue={user.phone || addresses.find((address) => address.phone)?.phone || ''} />
                   </label>
                 </div>
               ) : (

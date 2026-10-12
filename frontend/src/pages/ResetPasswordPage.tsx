@@ -18,16 +18,7 @@ export function ResetPasswordPage({ resetKey }: { resetKey: string }) {
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({})
   const [formError, setFormError] = useState<string | null>(null)
 
-  if (!resetKey) {
-    return (
-      <AuthLayout title="Reset link missing">
-        <EmptyState icon={<KeyRound size={24} />} title="This link isn’t complete" action={<a href="#login" className="sf-btn sf-btn-primary sf-btn-sm">Request a new link</a>}>
-          Open the link from your email again, or request a new one from the sign-in page.
-        </EmptyState>
-      </AuthLayout>
-    )
-  }
-
+  // checked first: on success the key is removed from the address bar
   if (isSuccess) {
     return (
       <AuthLayout title="Password updated">
@@ -37,6 +28,16 @@ export function ResetPasswordPage({ resetKey }: { resetKey: string }) {
           <a href="#account" className="sf-btn sf-btn-primary sf-btn-block">Go to my account</a>
           <a href="#honey" className="sf-btn sf-btn-ghost sf-btn-sm">Continue shopping</a>
         </div>
+      </AuthLayout>
+    )
+  }
+
+  if (!resetKey) {
+    return (
+      <AuthLayout title="Reset link missing">
+        <EmptyState icon={<KeyRound size={24} />} title="This link isn’t complete" action={<a href="#login" className="sf-btn sf-btn-primary sf-btn-sm">Request a new link</a>}>
+          Open the link from your email again, or request a new one from the sign-in page.
+        </EmptyState>
       </AuthLayout>
     )
   }
