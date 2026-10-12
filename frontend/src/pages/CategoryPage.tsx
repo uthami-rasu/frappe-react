@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Filter, Grid2X2, LayoutList, PackageCheck, SearchX, ShieldCheck, Sparkles, Truck, X } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { preload } from 'react-dom'
+import { getLenis } from '../app/lenis'
 import { buildHash, navigate, useRoute } from '../app/router'
 import { NewsletterSection } from '../components/home/NewsletterSection'
 import { StatsBand } from '../components/home/StatsBand'
@@ -201,9 +202,23 @@ export const CategoryPage = memo(function CategoryPage() {
   const { items, page, pageCount } = paginate(results, params.page)
   const filterCount = activeFilterCount(params)
 
+  // The filter column is taller than the screen, so after a change made low in it the (now
+  // shorter) results can sit above the viewport. Once the new results have rendered, bring
+  // them back under the header.
+  const scrollAfterUpdate = useRef(false)
+  useEffect(() => {
+    if (!scrollAfterUpdate.current) return
+    scrollAfterUpdate.current = false
+    const element = resultsRef.current
+    if (!element || element.getBoundingClientRect().top >= 0) return
+    const lenis = getLenis()
+    if (lenis) lenis.scrollTo(element, { offset: -150, duration: 0.6 })
+    else element.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [params])
   const update = (patch: Partial<CatalogParams>) => {
     const next = { ...params, ...patch, page: patch.page ?? 1 }
     if ('q' in patch && !patch.q && next.sort === 'relevance') next.sort = 'featured'
+    scrollAfterUpdate.current = true
     navigate(buildHash(route.path || 'honey', toQueryRecord(next)))
   }
   const goToPage = (target: number) => {

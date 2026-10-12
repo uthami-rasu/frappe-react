@@ -42,8 +42,6 @@ function CartLink() {
   )
 }
 
-const pageLinks = navItems.filter((item) => item.href !== '#honey')
-
 const CategoryBar = memo(function CategoryBar() {
   const { categories } = useCatalog()
   const route = useRoute()
@@ -61,11 +59,6 @@ const CategoryBar = memo(function CategoryBar() {
             {category.name}
           </a>
         ))}
-        </span>
-        <span className="sf-catbar-pages">
-          {pageLinks.map(({ label, href, icon: Icon }) => (
-            <a key={label} href={href}><Icon size={14} aria-hidden="true" /> {label}</a>
-          ))}
         </span>
       </div>
     </nav>
@@ -115,9 +108,17 @@ export function Header() {
       <div className="mx-auto flex h-[72px] max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:h-[78px] lg:gap-6 lg:px-12">
         <Brand />
 
-        <div className="hidden flex-1 justify-center md:flex">
+        <div className="hidden min-w-0 flex-1 justify-center md:flex">
           <SearchBox key={searchKey} initialQuery={route.path === 'honey' ? route.params.get('q') ?? '' : ''} />
         </div>
+
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="Main navigation">
+          {navItems.map(({ label, href, icon: Icon }) => (
+            <a className="nav-icon-link group" href={href} key={label}>
+              <Icon size={15} strokeWidth={1.8} /><span>{label}</span>
+            </a>
+          ))}
+        </nav>
 
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:ml-0">
           {/* wrappers carry the breakpoints: .icon-button's own display rule would override them */}

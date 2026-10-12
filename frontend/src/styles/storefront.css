@@ -555,8 +555,6 @@ textarea.sf-input { min-height: 120px; padding: 12px 14px; resize: vertical; }
 /* categories scroll on their own; the page links stay pinned on the right */
 .sf-catbar-cats { display: flex; flex: 1; min-width: 0; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 .sf-catbar-cats::-webkit-scrollbar { display: none; }
-.sf-catbar-pages { display: none; flex-shrink: 0; gap: 2px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .14); }
-@media (min-width: 1280px) { .sf-catbar-pages { display: flex; } }
 .sf-catbar a {
   flex-shrink: 0;
   display: inline-flex;
@@ -573,7 +571,7 @@ textarea.sf-input { min-height: 120px; padding: 12px 14px; resize: vertical; }
 .sf-catbar a:hover, .sf-catbar a[aria-current="page"] { background: rgba(255, 255, 255, .1); color: #f0d59f; }
 
 /* Header search */
-.sf-search { position: relative; flex: 1; max-width: 640px; }
+.sf-search { position: relative; flex: 1 1 220px; min-width: 0; max-width: 560px; }
 .sf-search form {
   display: flex;
   align-items: stretch;
