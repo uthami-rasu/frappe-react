@@ -245,6 +245,9 @@ doc_events = {
 # 	"bossco.auth.validate"
 # ]
 
+# Staff land on the Store dashboard after login (bossco/desk.py)
+on_login = "bossco.desk.on_login"
+
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
 

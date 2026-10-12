@@ -383,15 +383,19 @@ def make_workspace():
 
 
 def set_staff_home_page():
-	"""Land staff on the Store dashboard after login.
+	"""Nothing is stored on the role any more: a role home page would also make the website
+	root open Desk for staff (hooks.on_login handles the landing page instead)."""
+	frappe.db.set_value("Role", "System Manager", "home_page", None, update_modified=False)
 
-	Frappe 16 sends system users to the website home page (the storefront) unless their role
-	has a home page; Frappe 15 opens Desk, where Store is the first workspace. Shoppers
-	(Website Users with the Customer role) keep landing on the storefront."""
-	desk = "desk" if int(frappe.__version__.split(".")[0]) >= 16 else "app"
-	frappe.db.set_value(
-		"Role", "System Manager", "home_page", f"{desk}/{WORKSPACE.lower()}", update_modified=False
-	)
+
+def on_login(login_manager):
+	"""Land staff on the Store dashboard after signing in; shoppers keep the storefront.
+
+	Frappe 16 sends system users to get_home_page() (the storefront, via the home_page hook)
+	unless a flag says otherwise; Frappe 15 opens Desk, where Store is the first workspace."""
+	if frappe.db.get_value("User", login_manager.user, "user_type") == "System User":
+		desk = "desk" if int(frappe.__version__.split(".")[0]) >= 16 else "app"
+		frappe.local.flags.home_page = f"{desk}/{WORKSPACE.lower()}"
 
 
 def apply_workspace_visibility():
