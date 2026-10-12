@@ -1,6 +1,7 @@
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from bossco.desk import setup_desk
 from bossco.email_templates import make_email_templates
 
 
@@ -9,6 +10,7 @@ def after_install():
 	make_email_templates()
 	set_settings_defaults()
 	enable_contact_form()
+	setup_desk()
 
 
 def after_migrate():
@@ -16,6 +18,7 @@ def after_migrate():
 	make_email_templates()
 	set_settings_defaults()
 	enable_contact_form()
+	setup_desk()
 
 
 def enable_contact_form():

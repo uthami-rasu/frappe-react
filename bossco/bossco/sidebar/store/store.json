@@ -1,0 +1,106 @@
+{
+ "app": "bossco",
+ "creation": "2026-10-12 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Sidebar",
+ "header_icon": "store",
+ "idx": 0,
+ "items": [
+  {
+   "collapsible": 1,
+   "icon": "house",
+   "label": "Dashboard",
+   "link_to": "Store",
+   "link_type": "Workspace",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "receipt-text",
+   "label": "Orders",
+   "link_to": "Sales Order",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "file-text",
+   "label": "Invoices",
+   "link_to": "Sales Invoice",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "users",
+   "label": "Customers",
+   "link_to": "Customer",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "package",
+   "label": "Products",
+   "link_to": "Item",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "folder",
+   "label": "Item Groups",
+   "link_to": "Item Group",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "message-square",
+   "label": "Reviews",
+   "link_to": "Storefront Review",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "star",
+   "label": "Offers",
+   "link_to": "Storefront Offer",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "tag",
+   "label": "Coupons",
+   "link_to": "Coupon Code",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "mail",
+   "label": "Sent Emails",
+   "link_to": "Email Queue",
+   "link_type": "DocType",
+   "type": "Link"
+  },
+  {
+   "collapsible": 1,
+   "icon": "settings",
+   "label": "Settings",
+   "link_to": "Storefront Settings",
+   "link_type": "DocType",
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bossco",
+ "name": "Store",
+ "owner": "Administrator",
+ "sequence_id": 0.0,
+ "standard": 1,
+ "title": "Store"
+}

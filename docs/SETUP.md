@@ -166,14 +166,29 @@ CI=1 bench --site <site> run-tests --app bossco      # needs the demo catalog; r
 cd apps/bossco/frontend && yarn test && yarn lint && yarn typecheck
 ```
 
-## 8. Frappe / ERPNext versions
+## 8. The Store dashboard in Desk
+
+Staff land on **Desk → Store** after signing in (`/app/store` on Frappe 15, `/desk/store` on 16):
+live number cards (orders today, revenue this month, orders to ship, unpaid invoices, pending
+reviews, customers, products, active offers), an orders-per-day chart, quick links with counts
+(Orders, Invoices, Customers, Products, Item Groups, Reviews, Offers, Coupons, Sent Emails,
+Settings, Open Storefront) and link cards for everything else. It is created on install and
+re-applied on every migrate from `bossco/desk.py`, so edit that file rather than the workspace.
+
+*Storefront Settings → Show Only the Store Workspace in Desk* (on by default) hides ERPNext's
+other workspaces from the sidebar; documents stay reachable through the Store links and search.
+Users with the *Workspace Manager* role (Administrator) still see hidden workspaces, marked as
+hidden. On Frappe 16 the Store module also has its own sidebar (`bossco/sidebar/store/store.json`);
+other modules remain available from the module switcher at the top of the sidebar.
+
+## 9. Frappe / ERPNext versions
 
 The app is tested on **version-15** (Frappe 15.87, ERPNext 15.91) and **version-16** (Frappe 16.51,
 ERPNext 16.50). Both backend and browser test rounds pass on each. Version-16 self-hosting needs
 **Python 3.14** and **Node 24** (Frappe Cloud provides these); the only code paths that differ by
 version are isolated in `bossco/newsletter.py` and `bossco/account.py` (`send_password_reset`).
 
-## 9. Operational notes
+## 10. Operational notes
 
 - Rate limits (per IP): sign up 5/h, login 10/10 min, forgot password 5/h, place order 20/h, reviews
   10/h, cart quote 120/min. Shoppers see "too many requests".

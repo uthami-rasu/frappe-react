@@ -6,6 +6,7 @@
  "field_order": [
   "store_name",
   "announcement",
+  "simplified_desk",
   "reviews_section",
   "require_verified_purchase",
   "auto_publish_reviews",
@@ -35,6 +36,13 @@
    "fieldtype": "Data",
    "label": "Announcement Bar",
    "description": "Short text shown above the storefront header. Leave empty to hide it."
+  },
+  {
+   "default": "1",
+   "fieldname": "simplified_desk",
+   "fieldtype": "Check",
+   "label": "Show Only the Store Workspace in Desk",
+   "description": "Hides ERPNext's other workspaces from the Desk sidebar (documents stay accessible). Applied when these settings are saved and on migrate."
   },
   {
    "fieldname": "reviews_section",

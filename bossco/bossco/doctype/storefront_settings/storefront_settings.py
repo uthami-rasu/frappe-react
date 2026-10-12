@@ -8,6 +8,10 @@ from frappe.model.document import Document
 class StorefrontSettings(Document):
 	def on_update(self):
 		frappe.clear_cache(doctype="Storefront Settings")
+		if self.has_value_changed("simplified_desk"):
+			from bossco.desk import apply_workspace_visibility
+
+			apply_workspace_visibility()
 
 
 def get_settings():
