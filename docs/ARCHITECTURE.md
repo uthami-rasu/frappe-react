@@ -102,8 +102,16 @@ If you add a new endpoint that logs someone in or out, return `get_session_info(
 | Frontend hook | Python method | Who can call |
 |---|---|---|
 | `useGetCatalogQuery` | `bossco.api.get_catalog` | guest |
+| `useGetStorefrontConfigQuery` | `bossco.api.get_storefront_config` (store name, announcement, shipping options) | guest |
+| `useGetProductDetailsQuery` / `useGetRelatedProductsQuery` | `bossco.api.get_product` / `get_related_products` | guest |
 | `useGetProductsQuery` | `bossco.api.get_products` (server-side filter/sort; not used by a page yet) | guest |
-| `usePlaceOrderMutation` | `bossco.api.place_order` | guest, POST |
+| `useGetCartQuoteQuery` | `bossco.api.get_cart_quote` (ERPNext-priced totals, coupon check, stock issues) | guest |
+| `usePlaceOrderMutation` | `bossco.api.place_order` (+ `coupon_code`, `checkout_key`) | guest, POST |
+| `useGetActiveOffersQuery` | `bossco.offers.get_active_offers` | guest |
+| `useGetReviewsQuery`, `useSubmitReviewMutation`, `useVoteHelpfulMutation` | `bossco.reviews.*` | guest read, logged in write |
+| `useResetPasswordMutation` | `frappe.core.doctype.user.user.update_password` (Frappe's own, key-checked) | guest, POST |
+| `useSendContactMessageMutation`, `useSubscribeNewsletterMutation` | `frappe.www.contact.send_message`, `newsletter.subscribe` | guest, POST |
+| (listeners only) | `bossco.cart.get_cart`, `set_cart`, `merge_cart` | logged in |
 | `useGetSessionQuery` | `bossco.account.get_session` | guest |
 | `useLoginMutation` / `useSignUpMutation` | `bossco.account.login` / `sign_up` | guest, POST |
 | `useLogoutMutation` | `bossco.account.logout` | logged in, POST |
@@ -120,25 +128,28 @@ If you add a new endpoint that logs someone in or out, return `get_session_info(
 | Slice | Holds | Persisted? |
 |---|---|---|
 | `theme` | light/dark mode | yes |
-| `commerce` | cart lines, wishlist (item codes), shipping method, last order | yes, in `localStorage` (`bossco:commerce`) |
-| `storeApi` | cached server responses (catalog, session, addresses, ...) | no, refetched |
+| `commerce` | cart lines, wishlist (item codes), shipping method, coupon code, recently viewed, last order | yes, in `localStorage` (`bossco:commerce`) |
+| `ui` | cart drawer open state, badge pulse | no |
+| `storeApi` | cached server responses (catalog, session, quote, offers, reviews, ...) | no, refetched |
 
-The cart lives only in the browser until checkout. ERPNext doesn't know about it, so there is no "Quotation" or server-side cart.
+The cart is kept in the browser and, for logged-in shoppers, mirrored to *Storefront Cart Item* (quantities only; prices always come from ERPNext). Totals shown anywhere come from `get_cart_quote` (`hooks/useCartQuote.ts`, debounced).
 
-`frontend/src/app/listeners.ts` keeps the wishlist in sync with the server:
+`frontend/src/app/listeners.ts` keeps the wishlist and cart in sync with the server:
 
-- When a session with a user appears (page load while logged in, login, sign up), the local wishlist is sent to `merge_wishlist`, and the server's merged list replaces the local one.
-- When the heart button dispatches `toggleWishlist` and the shopper is logged in, the change is mirrored with `add_to_wishlist` / `remove_from_wishlist`.
-- On logout, `accountCleared` empties the wishlist and last order but keeps the cart.
+- When a session with a user appears (page load while logged in, login, sign up), the local wishlist and cart are merged with `merge_wishlist` / `merge_cart`, and the server copies replace the local ones.
+- When the heart button dispatches `toggleWishlist` and the shopper is logged in, the change is mirrored with `add_to_wishlist` / `remove_from_wishlist`; if the server refuses, the heart is rolled back.
+- Cart changes are saved with `set_cart` a moment after the last change.
+- On logout, `accountCleared` empties the wishlist, coupon and last order but keeps the cart.
 
 ## 5. Routing (hash-based)
 
-The app uses `window.location.hash` instead of a router library, and `App.tsx` picks the page. Frappe always serves the same `shop.html`, so there are no server routes to keep in sync.
+The app uses `window.location.hash` instead of a router library (`app/router.ts` parses `#path/segment?query`), and `App.tsx` picks the page. Frappe always serves the same `shop.html`, so there are no server routes to keep in sync. Pages other than home and the catalog are lazy chunks, prefetched when a link to them is hovered or focused, and preloaded for deep links by a small inline script in `index.html` (see `vite.config.ts`).
 
 | Hash | Page |
 |---|---|
 | (empty), `#home` | Home |
-| `#honey` | Category / catalog page |
+| `#honey?q=…&category=…&min=&max=&rating=&sizes=&stock=in&deals=1&sort=&page=` | Catalog; every filter lives in the URL (`features/catalog/catalogQuery.ts`) |
+| `#reset-password?key=…` | Choose a new password (link from the reset email) |
 | `#product/<slug>` | Product detail (slug = `Item.bossco_slug`) |
 | `#cart`, `#checkout`, `#order-complete` | Cart, checkout, confirmation |
 | `#wishlist` | Wishlist |
@@ -160,6 +171,11 @@ The app uses `window.location.hash` instead of a router library, and `App.tsx` p
 | Order | `Sales Order`, submitted, order type *Shopping Cart* | `api.place_order` |
 | Payment | `Payment Entry` against the Sales Order (mock gateway) | `payments.py` |
 | Wishlist | `Storefront Wishlist Item` (custom DocType, one row per user + item) | `account.py` |
+| Saved cart | `Storefront Cart Item` | `cart.py` |
+| Review | `Storefront Review` (+ `Storefront Review Vote`); Item rating fields are derived | `reviews.py` |
+| Promotion | `Storefront Offer` → ERPNext `Coupon Code` → `Pricing Rule` | `offers.py` |
+| Invoice | `Sales Invoice` made by background jobs from the Sales Order / Delivery Note | `orders.py` |
+| Store settings | `Storefront Settings` (single) | `api.get_storefront_config` |
 
 Custom fields (`bossco_*` on Item and Sales Order) are created by `install.py` on install and on every `bench migrate`. The `Item` `validate` hook in `hooks.py` gives each store item a unique URL slug.
 

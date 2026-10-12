@@ -4,15 +4,19 @@ Bossco storefront: a React (Vite + TypeScript + Tailwind + Redux Toolkit) single
 
 ### How it fits together
 
-For how React connects to Frappe (serving, API calls, CSRF, state, routing) and the main flows step by step, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For how React connects to Frappe (serving, API calls, CSRF, state, routing) and the main flows step by step, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For operator settings (email/SMTP, promotions, invoicing, reviews, environment variables), see [docs/SETUP.md](docs/SETUP.md).
 
 | Piece | Where |
 |---|---|
 | React source | `frontend/` |
 | Build output (generated, not committed) | `bossco/public/frontend/` and `bossco/www/shop.html` |
 | Page that serves the app at `/` and `/shop` | `bossco/www/shop.py` (adds the CSRF token), `home_page` in `hooks.py` |
-| Catalog + checkout API | `bossco/api.py` → `get_catalog`, `place_order` |
-| Accounts API (session, sign up, login, profile, addresses, orders, wishlist) | `bossco/account.py` |
+| Catalog, cart quote + checkout API | `bossco/api.py` → `get_catalog`, `get_product`, `get_related_products`, `get_cart_quote`, `place_order` |
+| Accounts API (session, sign up, login, password reset, profile, addresses, orders, invoices, wishlist) | `bossco/account.py` |
+| Reviews / promotions / server cart | `bossco/reviews.py`, `bossco/offers.py`, `bossco/cart.py` |
+| Order lifecycle: confirmation emails, invoices, invoice emails | `bossco/orders.py` (background jobs, hooks on Delivery Note / Sales Invoice / Sales Order) |
+| Email templates + SMTP setup helper | `bossco/email_templates.py`, `bossco/email_setup.py` |
+| Storefront Settings, Storefront Review (+ Vote), Storefront Offer, Storefront Cart Item | `bossco/bossco/doctype/` |
 | Which Customer a shopper is | `bossco/customers.py` |
 | Mock payment gateway | `bossco/payments.py` |
 | Item → product mapping | `bossco/storefront.py` |
@@ -24,7 +28,11 @@ For how React connects to Frappe (serving, API calls, CSRF, state, routing) and 
 
 **Accounts.** Signing up creates a Website User with the *Customer* role, plus their own Customer and Contact (Contact.user links them). Login, logout and password changes use Frappe's session. Forgot password emails Frappe's `/update-password` link, so outgoing email must be configured. My Account shows the profile, saved addresses (Address linked to the Customer), order history (from Sales Orders) and the wishlist (stored per user, merged with what was saved before logging in).
 
-**Checkout.** Logged-in shoppers order as their own Customer and can pick a saved address. Guests are matched by email to an earlier *guest* Customer, never to a registered account. The Sales Order is **submitted** (order type *Shopping Cart*). Prices and the express shipping charge (₹150, booked to *Freight and Forwarding Charges*) are calculated on the server.
+**Checkout.** The cart is priced by the server (`get_cart_quote` builds and rolls back the same Sales Order), so coupons (ERPNext Coupon Code + Pricing Rule), taxes and shipping shown are what is charged. Logged-in shoppers order as their own Customer and can pick a saved address. Guests are matched by email to an earlier *guest* Customer, never to a registered account. The Sales Order is **submitted** (order type *Shopping Cart*); a per-attempt checkout key stops retries from creating duplicate orders. Prices and the express shipping charge (₹150, booked to *Freight and Forwarding Charges*) are calculated on the server.
+
+**After the order.** Background jobs send the confirmation email, create the Sales Invoice (prepaid orders right away, cash on delivery when the Delivery Note is submitted) and email the invoice PDF; all idempotent, all switchable in *Storefront Settings*. Customers download invoices from their order history.
+
+**Reviews, offers, recommendations.** Ratings come only from published *Storefront Review* records (verified purchase checked server-side). Banners and popups come from *Storefront Offer* records backed by ERPNext coupons. "Frequently bought together" uses real order lines, with same-category best sellers as the fallback.
 
 **Payments are mocked.** Cash on delivery leaves the order unpaid. Card or UPI "charges" the mock gateway, stores the reference on the Sales Order (*Storefront Payment* section, Terms tab) and submits a Payment Entry against it into the *Mock Payment Gateway* bank ledger. Test values: card `4000 0000 0000 0002` or UPI `fail@upi` are declined, and a declined payment creates no order. To go live, replace `mock_charge()` in `bossco/payments.py` with a real gateway.
 
@@ -36,11 +44,18 @@ For how React connects to Frappe (serving, API calls, CSRF, state, routing) and 
 cd $PATH_TO_YOUR_BENCH
 bench get-app $URL_OF_THIS_REPO
 bench --site <site> install-app bossco
-bench --site <site> execute bossco.demo.seed   # optional demo catalog + mock payment accounts
+bench --site <site> execute bossco.demo.seed   # optional demo catalog, mock payment accounts and demo offers
 bench build --app bossco
 ```
 
-ERPNext must be installed and set up (company, default warehouse, selling price list).
+ERPNext must be installed and set up (company, default warehouse, selling price list). Then configure outgoing email and review *Storefront Settings*: see [docs/SETUP.md](docs/SETUP.md).
+
+### Tests
+
+```bash
+CI=1 bench --site <site> run-tests --app bossco          # backend, rolls back
+cd apps/bossco/frontend && yarn test && yarn lint && yarn typecheck
+```
 
 ### Development
 
