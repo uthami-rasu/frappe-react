@@ -73,19 +73,122 @@ NUMBER_CARDS = {
 	),
 }
 
-CHART = {
-	"chart_name": "Storefront Orders",
-	"chart_type": "Count",
-	"document_type": "Sales Order",
-	"based_on": "transaction_date",
-	"timespan": "Last Month",
-	"time_interval": "Daily",
-	"type": "Line",
-	"color": "#173f32",
-	"filters_json": json.dumps([["Sales Order", "docstatus", "=", 1]]),
-	"is_public": 1,
-	"module": MODULE,
-}
+
+def _chart(name, **fields):
+	base = {"chart_name": name, "is_public": 1, "module": MODULE, "color": "#173f32"}
+	return {**base, **fields}
+
+
+SUBMITTED = json.dumps([["Sales Order", "docstatus", "=", 1]])
+SUBMITTED_LINES = json.dumps([["Sales Order Item", "docstatus", "=", 1]])
+
+# Dashboard Charts, all computed live from ERPNext documents
+CHARTS = [
+	_chart(
+		"Storefront Orders",
+		chart_type="Count",
+		document_type="Sales Order",
+		based_on="transaction_date",
+		timespan="Last Quarter",
+		time_interval="Weekly",
+		type="Line",
+		filters_json=SUBMITTED,
+	),
+	_chart(
+		"Revenue by Month",
+		chart_type="Sum",
+		document_type="Sales Order",
+		based_on="transaction_date",
+		value_based_on="grand_total",
+		timespan="Last Year",
+		time_interval="Monthly",
+		type="Bar",
+		color="#2f7a4a",
+		filters_json=SUBMITTED,
+	),
+	_chart(
+		"Sales by Category",
+		chart_type="Group By",
+		document_type="Sales Order Item",
+		parent_document_type="Sales Order",
+		group_by_type="Sum",
+		group_by_based_on="item_group",
+		aggregate_function_based_on="amount",
+		number_of_groups=8,
+		type="Donut",
+		color="#d9a441",
+		filters_json=SUBMITTED_LINES,
+	),
+	_chart(
+		"Orders by Payment Method",
+		chart_type="Group By",
+		document_type="Sales Order",
+		group_by_type="Count",
+		group_by_based_on="bossco_payment_method",
+		number_of_groups=5,
+		type="Pie",
+		color="#173f32",
+		filters_json=SUBMITTED,
+	),
+	_chart(
+		"Order Status",
+		chart_type="Group By",
+		document_type="Sales Order",
+		group_by_type="Count",
+		group_by_based_on="status",
+		number_of_groups=6,
+		type="Percentage",
+		color="#2f7a4a",
+		filters_json=SUBMITTED,
+	),
+	_chart(
+		"Top Products",
+		chart_type="Group By",
+		document_type="Sales Order Item",
+		parent_document_type="Sales Order",
+		group_by_type="Sum",
+		group_by_based_on="item_name",
+		aggregate_function_based_on="qty",
+		number_of_groups=10,
+		type="Bar",
+		color="#a35c00",
+		filters_json=SUBMITTED_LINES,
+	),
+	_chart(
+		"New Customers",
+		chart_type="Count",
+		document_type="Customer",
+		based_on="creation",
+		timespan="Last Quarter",
+		time_interval="Weekly",
+		type="Line",
+		color="#2f6fdb",
+		filters_json=json.dumps([["Customer", "disabled", "=", 0]]),
+	),
+	_chart(
+		"Review Ratings",
+		chart_type="Group By",
+		document_type="Storefront Review",
+		group_by_type="Count",
+		group_by_based_on="rating",
+		number_of_groups=5,
+		type="Bar",
+		color="#e2a12b",
+		filters_json=json.dumps([["Storefront Review", "status", "=", "Published"]]),
+	),
+]
+
+# (chart name, width in columns), laid out row by row after the number cards
+CHART_LAYOUT = [
+	("Storefront Orders", 6),
+	("New Customers", 6),
+	("Revenue by Month", 12),
+	("Sales by Category", 4),
+	("Orders by Payment Method", 4),
+	("Order Status", 4),
+	("Top Products", 6),
+	("Review Ratings", 6),
+]
 
 # label: (type, link_to, doc_view, stats_filter, icon)
 SHORTCUTS = {
@@ -150,7 +253,7 @@ def has_app_permission():
 
 def setup_desk():
 	make_number_cards()
-	make_chart()
+	make_charts()
 	make_workspace()
 	set_staff_home_page()
 	apply_workspace_visibility()
@@ -189,8 +292,18 @@ def make_number_cards():
 		)
 
 
-def make_chart():
-	upsert("Dashboard Chart", CHART["chart_name"], CHART)
+def make_charts():
+	for chart in CHARTS:
+		if not frappe.db.exists("DocType", chart["document_type"]):
+			continue
+		upsert("Dashboard Chart", chart["chart_name"], chart)
+		# Frappe fills in the company currency for charts on Sales Order; counts and quantities
+		# must not be shown as money
+		counts = chart["chart_type"] == "Count" or chart.get("group_by_type") == "Count"
+		if counts or chart.get("aggregate_function_based_on") == "qty":
+			frappe.db.set_value(
+				"Dashboard Chart", chart["chart_name"], "currency", None, update_modified=False
+			)
 
 
 def block(kind, data):
@@ -204,10 +317,8 @@ def header(text):
 def make_workspace():
 	content = [header("Today")]
 	content += [block("number_card", {"number_card_name": label, "col": 3}) for label in NUMBER_CARDS]
-	content += [
-		header("Orders, last 30 days"),
-		block("chart", {"chart_name": CHART["chart_name"], "col": 12}),
-	]
+	content += [header("Sales")]
+	content += [block("chart", {"chart_name": name, "col": col}) for name, col in CHART_LAYOUT]
 	content += [header("Quick access")]
 	content += [block("shortcut", {"shortcut_name": label, "col": 3}) for label in SHORTCUTS]
 	content += [header("Everything else")]
@@ -266,7 +377,7 @@ def make_workspace():
 			"shortcuts": shortcuts,
 			"links": links,
 			"number_cards": [{"number_card_name": label, "label": label} for label in NUMBER_CARDS],
-			"charts": [{"chart_name": CHART["chart_name"], "label": CHART["chart_name"]}],
+			"charts": [{"chart_name": name, "label": name} for name, _col in CHART_LAYOUT],
 		},
 	)
 
