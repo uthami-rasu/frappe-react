@@ -23,10 +23,14 @@ export function TrendingSection() {
     const updateDepth = () => {
       const viewportCenter = window.innerWidth / 2
       const depthRange = Math.max(window.innerWidth * 0.52, 420)
-      ticker.querySelectorAll<HTMLElement>('.ticker-product').forEach((card) => {
+      const cards = Array.from(ticker.querySelectorAll<HTMLElement>('.ticker-product'))
+      // read every position first, then write: interleaving forced a layout per card per frame
+      const centers = cards.map((card) => {
         const rect = card.getBoundingClientRect()
-        const cardCenter = rect.left + rect.width / 2
-        const signedDistance = (cardCenter - viewportCenter) / depthRange
+        return rect.left + rect.width / 2
+      })
+      cards.forEach((card, index) => {
+        const signedDistance = (centers[index] - viewportCenter) / depthRange
         const distance = Math.min(Math.abs(signedDistance), 1)
         card.style.setProperty('--marquee-scale', `${1 - distance * 0.08}`)
         card.style.setProperty('--marquee-opacity', `${1 - distance * 0.3}`)
@@ -82,7 +86,7 @@ export function TrendingSection() {
               <button className="ticker-product group" key={`${product.id}-${index}`} type="button" onClick={() => setActiveId(product.id)}>
                 <span className="ticker-card-surface">
                   <span className="ticker-image size-[60px] shrink-0 overflow-hidden">
-                    <img className="size-full object-cover transition duration-700 ease-out group-hover:scale-[1.14]" src={product.image} alt="" />
+                    <img className="size-full object-cover transition duration-700 ease-out group-hover:scale-[1.14]" src={product.image} alt="" width={60} height={60} loading="lazy" decoding="async" />
                   </span>
                   <span className="min-w-[130px] flex-1 text-left">
                     <small className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-[.24em] text-[#d9b57e]/70">
@@ -121,11 +125,11 @@ export function TrendingSection() {
 
             <div className="relative flex flex-1 items-center justify-center py-8">
               <span className="absolute size-[280px] rounded-full bg-[#f2dfb8] sm:size-[370px]" />
-              <img className="spotlight-image relative z-10 h-[300px] w-[90%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,.28)] sm:h-[390px]" src={activeProduct.image} alt={activeProduct.name} key={activeProduct.id} />
+              <img className="spotlight-image relative z-10 h-[300px] w-[90%] object-contain drop-shadow-[0_30px_35px_rgba(0,0,0,.28)] sm:h-[390px]" src={activeProduct.image} alt={activeProduct.name} key={activeProduct.id} loading="lazy" decoding="async" />
             </div>
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div className="spotlight-copy" key={`copy-${activeProduct.id}`}><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#d5b77f]">This week&apos;s favourite</p><h3 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{activeProduct.name}</h3><p className="mt-2 text-xl font-bold text-[#efcd86]">₹{activeProduct.price}</p></div>
+              <div className="spotlight-copy" key={`copy-${activeProduct.id}`}><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#d5b77f]">This week&apos;s favourite</p><h3 className="mt-2 font-display text-3xl font-bold sm:text-4xl"><a href={`#product/${activeProduct.slug}`} className="hover:underline">{activeProduct.name}</a></h3><p className="mt-2 text-xl font-bold text-[#efcd86]">₹{activeProduct.price}</p></div>
               <button className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold transition hover:-translate-y-1 ${isAdded ? 'bg-[#668c77] text-white' : 'bg-white text-[#173f32] hover:bg-[#f0d59f]'}`} type="button" onClick={addFeatured}>{isAdded ? <Check size={17} /> : <Plus size={17} />}{isAdded ? 'Added to bag' : 'Add to bag'}</button>
             </div>
           </article>
@@ -137,7 +141,7 @@ export function TrendingSection() {
                 const isActive = product.id === activeProduct.id
                 return (
                   <button className={`trending-choice group flex items-center gap-4 rounded-[20px] border p-3 text-left transition duration-300 ${isActive ? 'border-[#caa56b] bg-[#f6efe3]' : 'border-transparent hover:border-[#e6ddd0] hover:bg-[#faf7f1]'}`} key={product.id} type="button" onClick={() => setActiveId(product.id)}>
-                    <span className="grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#eee5d7]"><img className="size-full object-contain transition duration-500 group-hover:scale-110" src={product.image} alt="" /></span>
+                    <span className="grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#eee5d7]"><img className="size-full object-contain transition duration-500 group-hover:scale-110" src={product.image} alt="" width={72} height={72} loading="lazy" decoding="async" /></span>
                     <span className="min-w-0 flex-1"><small className="text-[9px] font-bold uppercase tracking-[.13em] text-stone-400">0{index + 1}</small><strong className="mt-1 block truncate text-sm text-[#173f32] dark:text-white">{product.name}</strong><span className="mt-1 block text-xs font-bold text-[#b57437]">₹{product.price}</span></span>
                     <span className={`size-2 rounded-full transition ${isActive ? 'scale-100 bg-[#b87939]' : 'scale-0 bg-transparent'}`} />
                   </button>

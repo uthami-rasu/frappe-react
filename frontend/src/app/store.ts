@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import themeReducer from '../features/theme/themeSlice'
 import commerceReducer, { initialCommerceState, type CommerceState } from '../features/commerce/commerceSlice'
+import uiReducer from '../features/ui/uiSlice'
 import { storeApi } from '../features/api/storeApi'
 import { listenerMiddleware } from './listeners'
 
@@ -20,6 +21,7 @@ export const store = configureStore({
   reducer: {
     theme: themeReducer,
     commerce: commerceReducer,
+    ui: uiReducer,
     [storeApi.reducerPath]: storeApi.reducer,
   },
   preloadedState: { commerce: loadCommerce() },

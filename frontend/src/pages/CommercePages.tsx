@@ -1,16 +1,29 @@
 import { toast } from 'sonner'
-import { Check, Heart, Minus, Plus, ShoppingBag, Tag, Trash2 } from 'lucide-react'
+import { Check, Heart, Lock, Mail, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { addToCart, removeFromCart, setCartQuantity, setShippingMethod, toggleWishlist } from '../features/commerce/commerceSlice'
+import {
+  addToCart, MAX_QTY_PER_LINE, removeFromCart, setCartQuantity, setShippingMethod, toggleWishlist,
+} from '../features/commerce/commerceSlice'
 import type { CartLine } from '../features/commerce/commerceSlice'
 import type { CatalogProduct } from '../types/catalog'
-import { getProduct, shippingCostFor, shippingOptions } from '../features/commerce/pricing'
+import { getProduct } from '../features/commerce/pricing'
 import { NutDecorations } from '../components/home/NutDecorations'
+import { CartTotals } from '../components/cart/CartTotals'
+import { CouponField } from '../components/cart/CouponField'
+import { ProductRail } from '../components/product/ProductRail'
+import { productHref } from '../utils/product'
+import { EmptyState } from '../components/ui/Feedback'
+import { Price } from '../components/ui/Price'
+import { QuantityStepper } from '../components/ui/QuantityStepper'
+import { StockStatus } from '../components/ui/StockStatus'
+import { stockState } from '../utils/product'
+import { useCartQuote, useStorefrontConfig } from '../hooks/useCartQuote'
+import { formatMoney } from '../utils/money'
 
 type CommerceProps = { products: CatalogProduct[] }
 
-function money(value: number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value) }
+const money = (value: number) => formatMoney(value)
 
 export function Steps({ active }: { active: 1 | 2 | 3 }) {
   const steps = ['Shopping cart', 'Checkout details', 'Order complete']
@@ -35,27 +48,35 @@ export function Steps({ active }: { active: 1 | 2 | 3 }) {
   )
 }
 
-function Quantity({ line }: { line: CartLine }) {
+// "Save for later" adds to the wishlist; it never removes an item that is already saved
+function useSaveToWishlist() {
   const dispatch = useAppDispatch()
-  return (
-    <div className="cart-quantity">
-      <button type="button" onClick={() => dispatch(setCartQuantity({ ...line, quantity: line.quantity - 1 }))}>
-        <Minus size={12} />
-      </button>
-      <span>{line.quantity}</span>
-      <button type="button" onClick={() => dispatch(setCartQuantity({ ...line, quantity: line.quantity + 1 }))}>
-        <Plus size={12} />
-      </button>
-    </div>
-  )
+  const wishlist = useAppSelector((state) => state.commerce.wishlist)
+  return (id: string) => {
+    if (!wishlist.includes(id)) dispatch(toggleWishlist(id))
+  }
 }
 
 export function CartPage({ products }: CommerceProps) {
   const cart = useAppSelector((state) => state.commerce.cart)
+  const recentlyViewed = useAppSelector((state) => state.commerce.recentlyViewed)
   const dispatch = useAppDispatch()
+  const setWishlistItem = useSaveToWishlist()
   const shipping = useAppSelector((state) => state.commerce.shippingMethod)
-  const shippingCost = shippingCostFor(shipping)
-  const subtotal = cart.reduce((total, line) => total + (getProduct(products, line)?.price ?? 0) * line.quantity, 0)
+  const config = useStorefrontConfig()
+  const { quote, isStale, isError } = useCartQuote()
+  const itemCount = cart.reduce((total, line) => total + line.quantity, 0)
+  const blocking = quote?.issues.filter((issue) => issue.type !== 'limited_stock') ?? []
+  const suggestions = recentlyViewed
+    .filter((id) => !cart.some((line) => line.productId === id))
+    .map((id) => products.find((product) => product.id === id))
+    .filter((product): product is CatalogProduct => Boolean(product))
+
+  const saveForLater = (line: CartLine, product: CatalogProduct) => {
+    dispatch(removeFromCart(line))
+    setWishlistItem(product.id)
+    toast.success('Moved to your wishlist', { description: product.name })
+  }
 
   return (
     <main className="commerce-page relative overflow-hidden">
@@ -64,84 +85,97 @@ export function CartPage({ products }: CommerceProps) {
         <h1>Cart</h1>
         <Steps active={1} />
         {cart.length === 0 ? (
-          <div className="empty-cart">
-            <ShoppingBag size={34} />
-            <h2>Your cart is waiting</h2>
-            <p>Add a small-batch honey to continue.</p>
-            <a href="#honey">Explore honey</a>
+          <div className="mx-auto mt-10 max-w-xl">
+            <EmptyState icon={<ShoppingBag size={26} />} title="Your cart is empty" action={<a href="#honey" className="sf-btn sf-btn-primary">Explore the collection</a>}>
+              Add a small-batch favourite to get started. Items you save to your wishlist stay there for later.
+            </EmptyState>
           </div>
         ) : (
-          <div className="cart-layout">
-            <section className="cart-products">
-              <div className="cart-table-head">
-                <span>Product</span>
-                <span>Quantity</span>
-                <span>Price</span>
+          <div className="mt-8 grid gap-6 text-left lg:grid-cols-[minmax(0,1fr)_340px]">
+            <section className="sf-card p-5 sm:p-6" aria-labelledby="cart-lines-title">
+              <div className="flex items-end justify-between border-b border-[var(--sf-line)] pb-3">
+                <h2 id="cart-lines-title" className="text-xl font-bold">Shopping cart</h2>
+                <span className="sf-hint">Price</span>
               </div>
-              {cart.map((line) => {
-                const product = getProduct(products, line)
-                if (!product) return null
-                return (
-                  <article className="cart-line" key={`${line.productId}-${line.weight}`}>
-                    <img src={product.image} alt={product.name} />
-                    <div>
-                      <a href={`#product/${product.slug}`}>{product.name}</a>
-                      <small>(Weight: {line.weight})</small>
-                      <button type="button" onClick={() => {
-                        dispatch(removeFromCart(line))
-                        toast.info('Item removed from cart')
-                      }}>
-                        <Trash2 size={12} /> Remove
-                      </button>
-                    </div>
-                    <Quantity line={line} />
-                    <strong className="cart-price-column">
-                      <span>{money(product.price * line.quantity)}</span>
-                      {product.compareAtPrice && <del>{money(product.compareAtPrice * line.quantity)}</del>}
-                    </strong>
-                  </article>
-                )
-              })}
-              <div className="coupon-box">
-                <h2>Have a coupon?</h2>
-                <p>Add your code for an instant cart discount</p>
-                <div className="coupon-input-wrap">
-                  <Tag size={15} className="text-stone-400" />
-                  <input placeholder="Coupon Code" />
-                  <button type="button" onClick={() => toast.info('Coupon codes are not available yet')}>Apply</button>
-                </div>
-              </div>
+              <ul>
+                {cart.map((line) => {
+                  const product = getProduct(products, line)
+                  if (!product) return null
+                  const issue = quote?.issues.find((item) => item.itemCode === line.productId)
+                  const max = product.stock === null ? MAX_QTY_PER_LINE : Math.min(product.stock, MAX_QTY_PER_LINE)
+                  return (
+                    <li key={`${line.productId}-${line.weight}`} className="grid grid-cols-[88px_1fr] gap-4 border-b border-[var(--sf-line)] py-5 last:border-0 sm:grid-cols-[120px_1fr_auto]">
+                      <a href={productHref(product)} className="block overflow-hidden rounded-xl bg-[#f3eee4]" tabIndex={-1} aria-hidden="true">
+                        <img src={product.image} alt="" width={120} height={120} className="aspect-square w-full object-cover" loading="lazy" />
+                      </a>
+                      <div className="grid content-start gap-1.5">
+                        <a href={productHref(product)} className="text-[15px] font-semibold leading-snug hover:underline">{product.name}</a>
+                        <StockStatus product={product} />
+                        {line.weight && <span className="sf-hint">Size: {line.weight}</span>}
+                        {issue && (
+                          <p className="sf-error" role="alert">
+                            {issue.message}
+                            {issue.type === 'limited_stock' && issue.available ? (
+                              <button type="button" className="sf-link ml-2" onClick={() => dispatch(setCartQuantity({ productId: line.productId, weight: line.weight, quantity: issue.available! }))}>Update to {issue.available}</button>
+                            ) : null}
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          <QuantityStepper
+                            value={line.quantity}
+                            max={max}
+                            label={product.name}
+                            onChange={(quantity) => dispatch(setCartQuantity({ productId: line.productId, weight: line.weight, quantity }))}
+                            onRemove={() => dispatch(removeFromCart(line))}
+                          />
+                          <span className="h-4 w-px bg-[var(--sf-line)]" aria-hidden="true" />
+                          <button type="button" className="sf-link text-[13px]" onClick={() => { dispatch(removeFromCart(line)); toast.info('Removed from cart', { description: product.name }) }}>Delete</button>
+                          <span className="h-4 w-px bg-[var(--sf-line)]" aria-hidden="true" />
+                          <button type="button" className="sf-link text-[13px]" onClick={() => saveForLater(line, product)}>Save for later</button>
+                        </div>
+                      </div>
+                      <div className="col-start-2 sm:col-start-3 sm:text-right">
+                        <Price price={product.price * line.quantity} compareAtPrice={product.compareAtPrice ? product.compareAtPrice * line.quantity : null} showSavings={false} />
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="mt-3 text-right text-base">
+                Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'}): <b>{quote ? formatMoney(quote.subtotal, quote.currency, 2) : '…'}</b>
+              </p>
             </section>
-            <aside className="cart-summary shadow-lg">
-              <h2>Cart summary</h2>
-              {shippingOptions.map((option) => (
-                <label key={option.id} className={shipping === option.id ? 'is-selected' : ''}>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="shipping"
-                      checked={shipping === option.id}
-                      onChange={() => dispatch(setShippingMethod(option.id))}
-                    />
-                    <span>{option.label}</span>
-                  </div>
-                  <b>{option.value ? `+${money(option.value)}` : 'Free'}</b>
-                </label>
-              ))}
-              <dl>
-                <div>
-                  <dt>Subtotal</dt>
-                  <dd>{money(subtotal)}</dd>
-                </div>
-                <div>
-                  <dt>Total</dt>
-                  <dd>{money(subtotal + shippingCost)}</dd>
-                </div>
-              </dl>
-              <a className="checkout-button font-bold text-white shadow-md hover:brightness-105 transition-all" href="#checkout">
-                Checkout
+
+            <aside className="sf-card grid content-start gap-5 p-5 lg:sticky lg:top-[150px]" aria-label="Order summary">
+              <fieldset className="grid gap-2">
+                <legend className="sf-label mb-1">Delivery</legend>
+                {(config?.shippingOptions ?? []).map((option) => (
+                  <label key={option.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm ${shipping === option.id ? 'border-[var(--sf-brand)] bg-[var(--sf-surface-alt)]' : 'border-[var(--sf-line)]'}`}>
+                    <span className="flex items-center gap-2.5">
+                      <input type="radio" name="shipping" checked={shipping === option.id} onChange={() => dispatch(setShippingMethod(option.id))} className="accent-[var(--sf-brand)]" />
+                      {option.label}
+                    </span>
+                    <b>{option.amount ? `+${formatMoney(option.amount)}` : 'Free'}</b>
+                  </label>
+                ))}
+              </fieldset>
+              <CouponField quote={quote} isChecking={isStale} />
+              <CartTotals quote={quote} isLoading={isStale} isError={isError} />
+              {blocking.length > 0 && <p className="sf-alert sf-alert-warning text-[13px]">Remove unavailable items to continue.</p>}
+              <a
+                className={`sf-btn sf-btn-accent sf-btn-block ${blocking.length ? 'pointer-events-none opacity-50' : ''}`}
+                href="#checkout"
+                aria-disabled={blocking.length > 0}
+              >
+                Proceed to checkout
               </a>
+              <p className="flex items-center justify-center gap-1.5 text-xs text-[var(--sf-muted)]"><Lock size={12} /> Prices and stock are confirmed by our store at checkout</p>
             </aside>
+          </div>
+        )}
+        {suggestions.length > 0 && (
+          <div className="mt-10 text-left">
+            <ProductRail title="Pick up where you left off" eyebrow="Recently viewed" products={suggestions.slice(0, 10)} />
           </div>
         )}
       </div>
@@ -193,6 +227,9 @@ export function OrderCompletePage({ products }: CommerceProps) {
               <dd>{lastOrder.paymentMethod}{lastOrder.paid ? ' · Paid' : ''}</dd>
             </div>
           </dl>
+          {lastOrder.email && (
+            <p className="flex items-center justify-center gap-2 text-sm text-stone-600"><Mail size={15} /> A confirmation is on its way to <b>{lastOrder.email}</b></p>
+          )}
           <a href="#account/orders" className="bg-[#D9B27C] hover:bg-[#c9a068] text-white font-bold px-6 py-2.5 rounded-full text-xs transition-colors shadow-md">
             Purchase history
           </a>
@@ -229,8 +266,10 @@ export function WishlistPage({ products }: CommerceProps) {
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0)
 
   const addAllToCart = () => {
-    filteredProducts.forEach((p) => dispatch(addToCart({ productId: p.id, quantity: 1, weight: p.size })))
-    toast.success(`${filteredProducts.length} items added to cart 🍯`)
+    const available = filteredProducts.filter((p) => p.inStock && !cart.some((line) => line.productId === p.id))
+    available.forEach((p) => dispatch(addToCart({ productId: p.id, quantity: 1, weight: p.size })))
+    if (available.length) toast.success(`${available.length} item${available.length > 1 ? 's' : ''} added to cart 🍯`)
+    else toast.info('Everything available is already in your cart')
   }
 
   return (
@@ -398,12 +437,14 @@ export function WishlistPage({ products }: CommerceProps) {
                       <p className="font-display text-lg font-black text-[#173f32] dark:text-amber-400 leading-none">
                         {money(product.price)}
                       </p>
-                      <p className="text-[10px] text-stone-400 mt-0.5">
-                        Stock <span className="font-bold text-[#173f32] dark:text-amber-400">24</span>
+                      <p className={`mt-0.5 text-[10px] font-bold sf-stock-${stockState(product).tone}`}>
+                        {stockState(product).label}
                       </p>
                     </div>
 
-                    {cartQty === 0 ? (
+                    {!product.inStock ? (
+                      <span className="text-xs font-bold text-stone-400">Sold out</span>
+                    ) : cartQty === 0 ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -418,6 +459,7 @@ export function WishlistPage({ products }: CommerceProps) {
                       <div className="flex items-center gap-1.5 rounded-xl bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-2 py-1.5">
                         <button
                           type="button"
+                          aria-label={`Remove one ${product.name}`}
                           onClick={() => {
                             if (cartQty <= 1) dispatch(removeFromCart({ productId: product.id, weight: product.size }))
                             else dispatch(setCartQuantity({ productId: product.id, weight: product.size, quantity: cartQty - 1 }))
@@ -429,6 +471,8 @@ export function WishlistPage({ products }: CommerceProps) {
                         <span className="w-5 text-center text-sm font-black text-stone-900 dark:text-stone-100">{cartQty}</span>
                         <button
                           type="button"
+                          aria-label={`Add one more ${product.name}`}
+                          disabled={product.stock !== null && cartQty >= product.stock}
                           onClick={() => dispatch(setCartQuantity({ productId: product.id, weight: product.size, quantity: cartQty + 1 }))}
                           className="size-6 grid place-items-center rounded-lg bg-white dark:bg-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-200 transition"
                         >

@@ -46,4 +46,5 @@ export type Order = {
   paid: boolean
   shippingAddress: string
   items: OrderItem[]
+  invoices: string[]
 }

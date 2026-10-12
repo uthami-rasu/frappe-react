@@ -1,8 +1,11 @@
 import heroImage from '../../assets/images/ChatGPT Image Jun 10, 2026, 11_08_40 AM 1.webp'
 import { ArrowDown, ShieldCheck, Sparkles, Truck } from 'lucide-react'
+import { preload } from 'react-dom'
 import { ActionLink } from '../ui/ActionLink'
 
 export function HeroSection() {
+  // the hero background is the page's largest paint: start fetching it before CSS discovers it
+  preload(heroImage, { as: 'image', fetchPriority: 'high' })
   return (
     <section
       className="hero-section relative isolate overflow-hidden bg-[#edc488]"

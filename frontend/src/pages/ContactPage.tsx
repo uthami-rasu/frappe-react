@@ -1,11 +1,33 @@
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Check, Globe2, Mail, MapPin, MessageCircle, Phone, Send } from 'lucide-react'
 import { Footer } from '../components/layout/Footer'
 import { FacebookIcon, InstagramIcon, WhatsAppIcon } from '../components/ui/SocialIcons'
+import { useSendContactMessageMutation } from '../features/api/storeApi'
+import { useSession } from '../hooks/useSession'
 
 export function ContactPage() {
   const [submitted, setSubmitted] = useState(false)
+  const [sendMessage, { isLoading }] = useSendContactMessageMutation()
+  const { user } = useSession()
+
+  // Frappe's website contact endpoint: saves a Communication in Desk and emails the team
+  // (Contact Us Settings → Forward To Email) plus an acknowledgement to the sender.
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
+    const field = (name: string) => String(form.get(name) ?? '').trim()
+    const details = [`Name: ${field('name')}`, `Phone: ${field('phone')}`, field('order') && `Order: ${field('order')}`].filter(Boolean).join('\n')
+    try {
+      await sendMessage({ sender: field('email'), subject: field('subject'), message: `${field('message')}\n\n${details}` }).unwrap()
+      setSubmitted(true)
+      formElement.reset()
+      toast.success('Message sent', { description: 'Thank you! We usually reply within one business day.' })
+    } catch (error) {
+      toast.error('Could not send your message', { description: typeof error === 'string' ? error : 'Please try again, or call us.' })
+    }
+  }
   return (
     <main className="contact-page">
       <section className="contact-hero">
@@ -20,11 +42,7 @@ export function ContactPage() {
       </section>
 
       <div className="contact-shell">
-        <form className="contact-form" onSubmit={(event) => {
-          event.preventDefault()
-          setSubmitted(true)
-          toast.success('Message sent successfully!', { description: 'Thank you! We usually reply within one business day.' })
-        }}>
+        <form className="contact-form" onSubmit={submit}>
           <div className="contact-form-heading"><div><span>Send a note</span><h2>How can we help?</h2></div><Mail size={25} /></div>
           <div className="contact-form-layout">
             <aside className="contact-form-aside">
@@ -37,15 +55,15 @@ export function ContactPage() {
             </aside>
             <div className="contact-form-fields">
               <div className="contact-form-grid">
-                <label>Full name<input required placeholder="John Doe" /></label>
-                <label>Email address<input required type="email" placeholder="john@example.com" /></label>
-                <label>Phone number<input required type="tel" placeholder="+91 98765 43210" /></label>
-                <label>Order number <small>Optional</small><input placeholder="#BSC-12345" /></label>
-                <label className="contact-span-2">Subject<select defaultValue="Product enquiry"><option>Product enquiry</option><option>Order support</option><option>Wholesale enquiry</option><option>Gifting and hampers</option><option>Something else</option></select></label>
-                <label className="contact-span-2">Message<textarea required placeholder="How can we help you?" /></label>
+                <label>Full name<input name="name" required autoComplete="name" placeholder="John Doe" defaultValue={user?.fullName} /></label>
+                <label>Email address<input name="email" required type="email" autoComplete="email" placeholder="john@example.com" defaultValue={user?.email} /></label>
+                <label>Phone number<input name="phone" required type="tel" autoComplete="tel" placeholder="+91 98765 43210" defaultValue={user?.phone} /></label>
+                <label>Order number <small>Optional</small><input name="order" placeholder="SAL-ORD-2026-00001" /></label>
+                <label className="contact-span-2">Subject<select name="subject" defaultValue="Product enquiry"><option>Product enquiry</option><option>Order support</option><option>Wholesale enquiry</option><option>Gifting and hampers</option><option>Something else</option></select></label>
+                <label className="contact-span-2">Message<textarea name="message" required minLength={10} placeholder="How can we help you?" /></label>
               </div>
               <label className="contact-consent"><input required type="checkbox" /> <span>I agree to the Privacy Policy and terms of service regarding data handling.</span></label>
-              <button className={submitted ? 'is-submitted' : ''} type="submit">{submitted ? <><Check size={16} /> Message sent successfully</> : <><Send size={15} /> Send message</>}</button>
+              <button className={submitted ? 'is-submitted' : ''} type="submit" disabled={isLoading}>{isLoading ? 'Sending…' : submitted ? <><Check size={16} /> Message sent — send another?</> : <><Send size={15} /> Send message</>}</button>
             </div>
           </div>
         </form>

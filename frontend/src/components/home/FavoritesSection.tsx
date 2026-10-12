@@ -2,6 +2,7 @@ import { useMemo, useState, useRef } from 'react'
 import { uniqueCategories, useCatalog } from '../../hooks/useCatalog'
 import { CategoryFilters } from './CategoryFilters'
 import { ProductGrid } from './ProductGrid'
+import { ProductGridSkeleton } from '../ui/Feedback'
 import { useSectionParallax } from '../../hooks/useSectionParallax'
 import leftNuts from '../../assets/images/ChatGPT Image Jun 12, 2026, 04_05_10 PM 4.webp'
 import rightNuts from '../../assets/images/ChatGPT Image Jun 12, 2026, 04_05_10 PM 3.webp'
@@ -23,8 +24,8 @@ export function FavoritesSection() {
       className="favorites-parallax-section relative z-10 overflow-hidden px-5 pb-24 pt-16 text-center sm:px-8"
       id="favorites"
     >
-      <img className="favorites-parallax-left pointer-events-none absolute -bottom-28 -left-24 -z-10 hidden w-[320px] select-none opacity-35 lg:block" src={leftNuts} alt="" aria-hidden="true" />
-      <img className="favorites-parallax-right pointer-events-none absolute -bottom-28 -right-24 -z-10 hidden w-[320px] select-none opacity-35 lg:block" src={rightNuts} alt="" aria-hidden="true" />
+      <img className="favorites-parallax-left pointer-events-none absolute -bottom-28 -left-24 -z-10 hidden w-[320px] select-none opacity-35 lg:block" src={leftNuts} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+      <img className="favorites-parallax-right pointer-events-none absolute -bottom-28 -right-24 -z-10 hidden w-[320px] select-none opacity-35 lg:block" src={rightNuts} alt="" aria-hidden="true" loading="lazy" decoding="async" />
       <div className="favorites-orbit favorites-orbit-one" aria-hidden="true" />
       <div className="favorites-orbit favorites-orbit-two" aria-hidden="true" />
       <div className="favorites-depth-content">
@@ -45,7 +46,7 @@ export function FavoritesSection() {
           <CategoryFilters activeFilter={activeFilter} categories={categories} onChange={setActiveFilter} />
         </div>
         <div className="relative z-20 mt-14">
-          {isLoading ? <p className="text-sm text-stone-500">Loading favourites…</p> : <ProductGrid products={visibleProducts} />}
+          {isLoading ? <div className="mx-auto max-w-[1340px] text-left"><ProductGridSkeleton count={4} label="Loading favourites" /></div> : <ProductGrid products={visibleProducts} />}
         </div>
       </div>
     </section>

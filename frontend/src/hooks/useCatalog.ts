@@ -4,9 +4,18 @@ import type { CatalogProduct, CategoryNode } from '../types/catalog'
 const noProducts: CatalogProduct[] = []
 const noCategories: CategoryNode[] = []
 
+// Subscribe to the data and status only, not to every fetch flag, so a background refetch
+// doesn't re-render every component that shows products.
+const selectCatalog = ({ data, isLoading, isError }: { data?: { products: CatalogProduct[]; categories: CategoryNode[] }; isLoading: boolean; isError: boolean }) => ({
+  products: data?.products ?? noProducts,
+  categories: data?.categories ?? noCategories,
+  isLoading,
+  isError,
+})
+
 export function useCatalog() {
-  const { data, isLoading, isError, refetch } = useGetCatalogQuery()
-  return { products: data?.products ?? noProducts, categories: data?.categories ?? noCategories, isLoading, isError, refetch }
+  const { refetch, ...catalog } = useGetCatalogQuery(undefined, { selectFromResult: selectCatalog })
+  return { ...catalog, refetch }
 }
 
 export function uniqueCategories(products: CatalogProduct[]) {

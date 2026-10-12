@@ -1,8 +1,10 @@
+import { ArrowLeft, CheckCircle2, MailCheck } from 'lucide-react'
+import { useRef, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
-import { ArrowLeft, LockKeyhole, Mail } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
-import { NutDecorations } from '../components/home/NutDecorations'
+import { AuthLayout } from '../components/auth/AuthLayout'
+import { PasswordField, TextField } from '../components/auth/AuthFields'
 import { useForgotPasswordMutation, useLoginMutation, useSignUpMutation } from '../features/api/storeApi'
+import { checkPassword, isValidEmail } from '../utils/password'
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
@@ -12,160 +14,189 @@ type AuthPageProps = {
   next?: string
 }
 
-const labelClass = 'block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1'
-const submitClass = 'w-full rounded-lg bg-[#173f32] py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#1e5040] disabled:cursor-wait disabled:opacity-70'
-
-function fieldsOf(event: FormEvent<HTMLFormElement>) {
-  const form = new FormData(event.currentTarget)
-  return (name: string) => String(form.get(name) ?? '').trim()
-}
+type Errors = Record<string, string | undefined>
 
 const errorText = (error: unknown) => (typeof error === 'string' ? error : 'Please check your connection and try again.')
 
-export function AuthPage({ initialMode = 'login', next = '#account' }: AuthPageProps) {
-  const [mode, setMode] = useState<AuthMode>(initialMode)
-  const [login, { isLoading: isLoggingIn }] = useLoginMutation()
-  const [signUp, { isLoading: isSigningUp }] = useSignUpMutation()
-  const [forgotPassword, { isLoading: isSending, data: resetSent }] = useForgotPasswordMutation()
+function FormAlert({ message }: { message: string | null }) {
+  if (!message) return null
+  return <p className="sf-alert sf-alert-error" role="alert">{message}</p>
+}
 
-  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+function focusFirstError(form: HTMLFormElement | null) {
+  window.requestAnimationFrame(() => form?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+}
+
+function LoginForm({ next, onForgot, onRegister }: { next: string; onForgot: (email: string) => void; onRegister: () => void }) {
+  const [login, { isLoading }] = useLoginMutation()
+  const [values, setValues] = useState({ email: '', password: '' })
+  const [errors, setErrors] = useState<Errors>({})
+  const [formError, setFormError] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const validate = () => ({
+    email: !values.email.trim() ? 'Enter your email address' : !isValidEmail(values.email) ? 'Enter a valid email address, e.g. name@example.com' : undefined,
+    password: values.password ? undefined : 'Enter your password',
+  })
+
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const field = fieldsOf(event)
+    const found = validate()
+    setErrors(found)
+    setFormError(null)
+    if (Object.values(found).some(Boolean)) return focusFirstError(formRef.current)
     try {
-      const session = await login({ email: field('email'), password: String(new FormData(event.currentTarget).get('password')) }).unwrap()
+      const session = await login({ email: values.email.trim(), password: values.password }).unwrap()
       toast.success(`Welcome back, ${session.user?.firstName || 'friend'}!`)
       window.location.hash = next
     } catch (error) {
-      toast.error('Could not sign in', { description: errorText(error) })
-    }
-  }
-
-  const handleSignUp = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const field = fieldsOf(event)
-    const form = new FormData(event.currentTarget)
-    const password = String(form.get('password'))
-    if (password !== String(form.get('confirm_password'))) {
-      toast.error('Passwords do not match')
-      return
-    }
-    try {
-      const session = await signUp({
-        first_name: field('first_name'), last_name: field('last_name'), email: field('email'), phone: field('phone'), password,
-      }).unwrap()
-      toast.success(`Welcome to Bossco, ${session.user?.firstName}! 🎉`, { description: 'Your account is ready.' })
-      window.location.hash = next
-    } catch (error) {
-      toast.error('Could not create your account', { description: errorText(error) })
-    }
-  }
-
-  const handleForgot = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    try {
-      await forgotPassword({ email: fieldsOf(event)('email') }).unwrap()
-    } catch (error) {
-      toast.error('Could not send the reset link', { description: errorText(error) })
+      setFormError(errorText(error) === 'Invalid Login. Try again.' ? 'That email and password don’t match. Try again or reset your password.' : errorText(error))
     }
   }
 
   return (
-    <main className="commerce-page relative overflow-hidden">
-      <NutDecorations />
-      <div className="commerce-wrap relative z-10">
-        <h1>{mode === 'register' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}</h1>
-        <section className="mx-auto mt-10 max-w-[460px] rounded-2xl border border-[#e2ded5] bg-white/90 p-6 shadow-lg backdrop-blur-sm sm:p-8">
-          {mode !== 'forgot' && (
-            <div className="mb-7 grid grid-cols-2 rounded-full bg-[#f4efe5] p-1 text-sm font-bold" role="tablist">
-              {(['login', 'register'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === tab}
-                  onClick={() => setMode(tab)}
-                  className={`rounded-full py-2.5 transition ${mode === tab ? 'bg-[#173f32] text-white shadow' : 'text-[#315545] hover:text-[#173f32]'}`}
-                >
-                  {tab === 'login' ? 'Sign in' : 'Create account'}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {mode === 'login' && (
-            <form className="space-y-5" onSubmit={handleLogin}>
-              <div>
-                <label className={labelClass} htmlFor="login-email">Email</label>
-                <input id="login-email" name="email" type="email" required autoComplete="email" className="account-input" placeholder="you@example.com" />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className={labelClass} htmlFor="login-password">Password</label>
-                  <button type="button" className="mb-1 text-xs font-semibold text-[#a36932] hover:underline" onClick={() => setMode('forgot')}>Forgot password?</button>
-                </div>
-                <input id="login-password" name="password" type="password" required autoComplete="current-password" className="account-input" placeholder="Your password" />
-              </div>
-              <button className={submitClass} type="submit" disabled={isLoggingIn}>{isLoggingIn ? 'Signing in…' : 'Sign in'}</button>
-            </form>
-          )}
-
-          {mode === 'register' && (
-            <form className="space-y-5" onSubmit={handleSignUp}>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass} htmlFor="signup-first">First name *</label>
-                  <input id="signup-first" name="first_name" required autoComplete="given-name" className="account-input" placeholder="First name" />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="signup-last">Last name</label>
-                  <input id="signup-last" name="last_name" autoComplete="family-name" className="account-input" placeholder="Last name" />
-                </div>
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="signup-email">Email *</label>
-                <input id="signup-email" name="email" type="email" required autoComplete="email" className="account-input" placeholder="you@example.com" />
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="signup-phone">Phone</label>
-                <input id="signup-phone" name="phone" type="tel" autoComplete="tel" className="account-input" placeholder="Mobile number" />
-              </div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass} htmlFor="signup-password">Password *</label>
-                  <input id="signup-password" name="password" type="password" required minLength={8} autoComplete="new-password" className="account-input" placeholder="8+ characters" />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="signup-confirm">Confirm *</label>
-                  <input id="signup-confirm" name="confirm_password" type="password" required minLength={8} autoComplete="new-password" className="account-input" placeholder="Repeat password" />
-                </div>
-              </div>
-              <p className="text-xs text-stone-500">Use a mix of words, numbers and symbols — very common passwords are rejected.</p>
-              <button className={submitClass} type="submit" disabled={isSigningUp}>{isSigningUp ? 'Creating account…' : 'Create account'}</button>
-            </form>
-          )}
-
-          {mode === 'forgot' && (
-            resetSent ? (
-              <div className="space-y-5 text-center">
-                <span className="mx-auto grid size-14 place-items-center rounded-full bg-[#eef3ea] text-[#527d49]"><Mail size={24} /></span>
-                <p className="text-sm leading-6 text-stone-600">{resetSent.message}</p>
-                <button type="button" className={submitClass} onClick={() => setMode('login')}>Back to sign in</button>
-              </div>
-            ) : (
-              <form className="space-y-5" onSubmit={handleForgot}>
-                <p className="flex items-start gap-3 text-sm leading-6 text-stone-600"><LockKeyhole className="mt-1 shrink-0 text-[#a36932]" size={16} /> Enter your account email and we'll send you a link to set a new password.</p>
-                <div>
-                  <label className={labelClass} htmlFor="forgot-email">Email</label>
-                  <input id="forgot-email" name="email" type="email" required autoComplete="email" className="account-input" placeholder="you@example.com" />
-                </div>
-                <button className={submitClass} type="submit" disabled={isSending}>{isSending ? 'Sending…' : 'Send reset link'}</button>
-                <button type="button" className="flex w-full items-center justify-center gap-2 text-xs font-semibold text-[#315545] hover:underline" onClick={() => setMode('login')}><ArrowLeft size={13} /> Back to sign in</button>
-              </form>
-            )
-          )}
-        </section>
+    <form ref={formRef} className="grid gap-5" onSubmit={submit} noValidate>
+      <FormAlert message={formError} />
+      <TextField label="Email" type="email" name="email" autoComplete="email" inputMode="email" required value={values.email} error={errors.email}
+        onChange={(event) => setValues({ ...values, email: event.target.value })} onBlur={() => values.email && setErrors({ ...errors, email: validate().email })} />
+      <div className="grid gap-1.5">
+        <PasswordField label="Password" name="password" autoComplete="current-password" required value={values.password} error={errors.password}
+          onChange={(event) => setValues({ ...values, password: event.target.value })} />
+        <button type="button" className="sf-link justify-self-end text-[13px]" onClick={() => onForgot(values.email)}>Forgot password?</button>
       </div>
-      <div className="commerce-bottom-bar" />
-    </main>
+      <button className="sf-btn sf-btn-primary sf-btn-block" type="submit" disabled={isLoading}>{isLoading ? 'Signing in…' : 'Sign in'}</button>
+      <p className="text-center text-sm text-[var(--sf-ink-soft)]">New to Bossco? <button type="button" className="sf-link" onClick={onRegister}>Create an account</button></p>
+    </form>
+  )
+}
+
+function RegisterForm({ next, onLogin }: { next: string; onLogin: () => void }) {
+  const [signUp, { isLoading }] = useSignUpMutation()
+  const [values, setValues] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '', confirm: '' })
+  const [errors, setErrors] = useState<Errors>({})
+  const [formError, setFormError] = useState<string | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const set = (field: keyof typeof values) => (event: React.ChangeEvent<HTMLInputElement>) => setValues({ ...values, [field]: event.target.value })
+  const personal = [values.email, values.first_name, values.last_name]
+
+  const validate = (): Errors => {
+    const strength = checkPassword(values.password, personal)
+    return {
+      first_name: values.first_name.trim() ? undefined : 'Enter your first name',
+      email: !values.email.trim() ? 'Enter your email address' : !isValidEmail(values.email) ? 'Enter a valid email address' : undefined,
+      phone: values.phone && !/^[+\d][\d\s-]{6,16}$/.test(values.phone.trim()) ? 'Enter a valid phone number' : undefined,
+      password: !values.password ? 'Create a password' : strength.acceptable ? undefined : strength.problems[0],
+      confirm: values.confirm !== values.password ? 'Passwords don’t match' : undefined,
+    }
+  }
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    const found = validate()
+    setErrors(found)
+    setFormError(null)
+    if (Object.values(found).some(Boolean)) return focusFirstError(formRef.current)
+    try {
+      const session = await signUp({
+        first_name: values.first_name.trim(), last_name: values.last_name.trim(), email: values.email.trim(), phone: values.phone.trim(), password: values.password,
+      }).unwrap()
+      toast.success(`Welcome to Bossco, ${session.user?.firstName}! 🎉`, { description: 'Your account is ready.' })
+      window.location.hash = next
+    } catch (error) {
+      const message = errorText(error)
+      if (/already exists/i.test(message)) {
+        setErrors({ email: 'An account with this email already exists.' })
+        setFormError(null)
+        focusFirstError(formRef.current)
+      } else setFormError(message)
+    }
+  }
+
+  return (
+    <form ref={formRef} className="grid gap-5" onSubmit={submit} noValidate>
+      <FormAlert message={formError} />
+      {errors.email === 'An account with this email already exists.' && (
+        <p className="sf-alert sf-alert-info text-[13px]">Already registered? <button type="button" className="sf-link" onClick={onLogin}>Sign in instead</button></p>
+      )}
+      <div className="grid gap-5 sm:grid-cols-2">
+        <TextField label="First name" name="first_name" autoComplete="given-name" required value={values.first_name} error={errors.first_name} onChange={set('first_name')} />
+        <TextField label="Last name" name="last_name" autoComplete="family-name" optional value={values.last_name} onChange={set('last_name')} />
+      </div>
+      <TextField label="Email" type="email" name="email" autoComplete="email" inputMode="email" required value={values.email} error={errors.email} onChange={set('email')}
+        onBlur={() => values.email && setErrors({ ...errors, email: validate().email })} hint="We’ll send order updates and invoices here." />
+      <TextField label="Mobile number" type="tel" name="phone" autoComplete="tel" optional value={values.phone} error={errors.phone} onChange={set('phone')} />
+      <PasswordField label="Password" name="password" autoComplete="new-password" required value={values.password} error={errors.password} onChange={set('password')} showStrength personal={personal} />
+      <PasswordField label="Confirm password" name="confirm_password" autoComplete="new-password" required value={values.confirm} error={errors.confirm} onChange={set('confirm')}
+        onBlur={() => values.confirm && setErrors({ ...errors, confirm: validate().confirm })} />
+      <button className="sf-btn sf-btn-primary sf-btn-block" type="submit" disabled={isLoading}>{isLoading ? 'Creating account…' : 'Create account'}</button>
+      <p className="text-center text-sm text-[var(--sf-ink-soft)]">Already have an account? <button type="button" className="sf-link" onClick={onLogin}>Sign in</button></p>
+    </form>
+  )
+}
+
+function ForgotForm({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+  const [forgotPassword, { isLoading, data: sent }] = useForgotPasswordMutation()
+  const [email, setEmail] = useState(initialEmail)
+  const [error, setError] = useState<string>()
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    const problem = !email.trim() ? 'Enter your email address' : !isValidEmail(email) ? 'Enter a valid email address' : undefined
+    setError(problem)
+    setFormError(null)
+    if (problem) return
+    try {
+      await forgotPassword({ email: email.trim() }).unwrap()
+    } catch (failure) {
+      setFormError(errorText(failure))
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="grid gap-5 text-center" role="status">
+        <span className="mx-auto grid size-14 place-items-center rounded-full bg-[var(--sf-success-bg)] text-[var(--sf-success)]"><MailCheck size={26} /></span>
+        <p className="text-sm leading-6 text-[var(--sf-ink-soft)]">{sent.message}</p>
+        <p className="sf-hint">The link expires after a while. Didn’t get it? Check spam, or try again in a few minutes.</p>
+        <button type="button" className="sf-btn sf-btn-primary sf-btn-block" onClick={onBack}>Back to sign in</button>
+      </div>
+    )
+  }
+  return (
+    <form className="grid gap-5" onSubmit={submit} noValidate>
+      <FormAlert message={formError} />
+      <TextField label="Email" type="email" name="email" autoComplete="email" inputMode="email" required value={email} error={error} onChange={(event) => setEmail(event.target.value)} autoFocus />
+      <button className="sf-btn sf-btn-primary sf-btn-block" type="submit" disabled={isLoading}>{isLoading ? 'Sending…' : 'Email me a reset link'}</button>
+      <button type="button" className="sf-btn sf-btn-ghost sf-btn-sm justify-self-center" onClick={onBack}><ArrowLeft size={14} /> Back to sign in</button>
+    </form>
+  )
+}
+
+export function AuthPage({ initialMode = 'login', next = '#account' }: AuthPageProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const titles: Record<AuthMode, [string, string]> = {
+    login: ['Sign in', 'Welcome back. Sign in to see your orders, wishlist and saved addresses.'],
+    register: ['Create your account', 'It takes less than a minute.'],
+    forgot: ['Reset your password', 'Enter the email you registered with and we’ll send you a link to choose a new password.'],
+  }
+  return (
+    <AuthLayout title={titles[mode][0]} subtitle={titles[mode][1]}>
+      {mode !== 'forgot' && (
+        <div className="mb-6 grid grid-cols-2 rounded-full bg-[var(--sf-surface-alt)] p-1 text-sm font-bold" role="tablist" aria-label="Account">
+          {(['login', 'register'] as const).map((tab) => (
+            <button key={tab} type="button" role="tab" aria-selected={mode === tab} onClick={() => setMode(tab)}
+              className={`rounded-full py-2.5 transition ${mode === tab ? 'bg-[#173f32] text-white shadow' : 'text-[#315545] hover:text-[#173f32]'}`}>
+              {tab === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
+        </div>
+      )}
+      {mode === 'login' && <LoginForm next={next} onForgot={(email) => { setForgotEmail(email); setMode('forgot') }} onRegister={() => setMode('register')} />}
+      {mode === 'register' && <RegisterForm next={next} onLogin={() => setMode('login')} />}
+      {mode === 'forgot' && <ForgotForm initialEmail={forgotEmail} onBack={() => setMode('login')} />}
+      {mode !== 'forgot' && <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-[var(--sf-muted)]"><CheckCircle2 size={13} /> We never share your details.</p>}
+    </AuthLayout>
   )
 }

@@ -4,6 +4,7 @@
 @import "@fontsource/cormorant-garamond/latin-600.css";
 @import "@fontsource/cormorant-garamond/latin-700.css";
 @import "tailwindcss";
+@import "./styles/storefront.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

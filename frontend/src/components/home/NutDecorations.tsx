@@ -8,11 +8,15 @@ export function NutDecorations() {
         className="absolute -left-8 -top-14 h-[280px] w-[190px] select-none object-fill md:-top-[72px] md:h-[360px] md:w-[260px] xl:-top-[110px] xl:h-[560px] xl:w-[430px]"
         src={leftNuts}
         alt=""
+        loading="lazy"
+        decoding="async"
       />
       <img
         className="absolute -right-8 -top-14 h-[280px] w-[190px] select-none object-fill md:-top-[72px] md:h-[360px] md:w-[260px] xl:-top-[110px] xl:h-[560px] xl:w-[430px]"
         src={rightNuts}
         alt=""
+        loading="lazy"
+        decoding="async"
       />
     </div>
   )

@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { ChevronDown, PackageOpen, RotateCcw } from 'lucide-react'
+import { ChevronDown, FileDown, PackageOpen, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { useAppDispatch } from '../../app/hooks'
 import { useGetOrdersQuery } from '../../features/api/storeApi'
@@ -17,8 +17,11 @@ const statusClass: Record<OrderStatus, string> = {
   Cancelled: 'bg-red-50 text-red-700',
 }
 
+const PAGE = 20
+
 export function OrderHistory({ products }: { products: CatalogProduct[] }) {
-  const { data: orders = [], isLoading, isError } = useGetOrdersQuery()
+  const [limit, setLimit] = useState(PAGE)
+  const { data: orders = [], isLoading, isError, isFetching } = useGetOrdersQuery({ start: 0, limit })
   const [expanded, setExpanded] = useState<string | null>(null)
   const dispatch = useAppDispatch()
 
@@ -82,13 +85,24 @@ export function OrderHistory({ products }: { products: CatalogProduct[] }) {
                       <div><dt className="font-bold uppercase tracking-wider text-stone-400">Payment</dt><dd>{order.paymentMethod} · {order.paid ? <b className="text-emerald-700">Paid</b> : 'Pay on delivery'}{order.paymentReference && <span className="block text-stone-400">Ref {order.paymentReference}</span>}</dd></div>
                       <div><dt className="font-bold uppercase tracking-wider text-stone-400">Delivering to</dt><dd>{order.shippingAddress || '—'}</dd></div>
                     </dl>
-                    <button type="button" onClick={() => buyAgain(order)} className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#D9B27C] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#c9a068]"><RotateCcw size={13} /> Buy again</button>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => buyAgain(order)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#D9B27C] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#c9a068]"><RotateCcw size={13} /> Buy again</button>
+                      {order.invoices.map((invoice) => (
+                        <a key={invoice} href={`/api/method/bossco.account.download_invoice?name=${encodeURIComponent(invoice)}`} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-4 py-2 text-xs font-bold text-stone-700 hover:border-stone-500" download={`${invoice}.pdf`}>
+                          <FileDown size={13} /> Invoice {invoice}
+                        </a>
+                      ))}
+                      {!order.invoices.length && order.status !== 'Cancelled' && <span className="self-center text-xs text-stone-400">Invoice available once your order is billed</span>}
+                    </div>
                   </div>
                 )}
               </li>
             )
           })}
         </ul>
+      )}
+      {orders.length >= limit && (
+        <button type="button" className="sf-btn sf-btn-outline sf-btn-sm mt-4" disabled={isFetching} onClick={() => setLimit((value) => value + PAGE)}>{isFetching ? 'Loading…' : 'Show older orders'}</button>
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { getLenis } from '../../app/lenis'
 
 type ScrollProgressProps = {
   route?: string
@@ -53,7 +54,7 @@ export function ScrollProgress({ route }: ScrollProgressProps) {
 
     let lenisAdded = false
     const attachLenis = () => {
-      const lenis = (window as any).lenis
+      const lenis = getLenis()
       if (lenis && typeof lenis.on === 'function') {
         lenis.on('scroll', (e: { progress: number }) => {
           updateReadingProgress(e.progress)

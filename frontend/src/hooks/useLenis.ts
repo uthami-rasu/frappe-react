@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import Lenis from 'lenis'
+import { setLenis } from '../app/lenis'
 
 export function useLenis() {
   useEffect(() => {
@@ -11,10 +12,10 @@ export function useLenis() {
       lerp: 0.08,
     })
 
-    ;(window as any).lenis = lenis
+    setLenis(lenis)
 
     return () => {
-      ;(window as any).lenis = null
+      setLenis(null)
       lenis.destroy()
     }
   }, [])

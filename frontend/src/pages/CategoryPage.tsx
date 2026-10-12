@@ -1,268 +1,319 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
-import {
-  Check, ChevronDown, Filter, Grid2X2, Heart, Info, LayoutList,
-  Leaf, MapPin, Minus, PackageCheck, Search, ShieldCheck, ShoppingBag, SlidersHorizontal,
-  Sparkles, Star, Truck, X,
-} from 'lucide-react'
-import { Footer } from '../components/layout/Footer'
-import { uniqueCategories } from '../hooks/useCatalog'
-import type { CatalogSort, CatalogProduct } from '../types/catalog'
-import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { addToCart, toggleWishlist } from '../features/commerce/commerceSlice'
-import { StatsBand } from '../components/home/StatsBand'
+import { ChevronDown, ChevronLeft, ChevronRight, Filter, Grid2X2, LayoutList, PackageCheck, SearchX, ShieldCheck, Sparkles, Truck, X } from 'lucide-react'
+import { memo, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { preload } from 'react-dom'
+import { buildHash, navigate, useRoute } from '../app/router'
 import { NewsletterSection } from '../components/home/NewsletterSection'
+import { StatsBand } from '../components/home/StatsBand'
+import { Footer } from '../components/layout/Footer'
+import { ProductTile } from '../components/product/ProductTile'
+import { Breadcrumbs, type Crumb } from '../components/ui/Breadcrumbs'
+import { EmptyState, ErrorState, ProductGridSkeleton } from '../components/ui/Feedback'
+import { Modal } from '../components/ui/Modal'
+import { Stars } from '../components/ui/Stars'
+import {
+  activeFilterCount, categoryTrail, paginate, parseCatalogParams, priceBands, queryCatalog, SORT_LABELS, toQueryRecord,
+  type CatalogListSort, type CatalogParams, type Facets,
+} from '../features/catalog/catalogQuery'
+import { useStorefrontConfig } from '../hooks/useCartQuote'
+import { useCatalog } from '../hooks/useCatalog'
+import type { CategoryNode } from '../types/catalog'
+import { formatMoney } from '../utils/money'
 import categoryHeroBg from '../assets/category/image copy.webp'
 
-type CategoryPageProps = { products: CatalogProduct[] }
 type ViewMode = 'grid' | 'list'
-type FilterSnapshot = {
-  search: string
-  category: string
-  maxPrice: number | null
-  selectedSizes: string[]
-  minRating: number
+const VIEW_KEY = 'bossco:catalog-view'
+
+function readView(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid'
+  } catch {
+    return 'grid'
+  }
 }
 
-const ALL_CATEGORIES = 'All products'
-
-// maxPrice null = no price cap
-const defaultFilters: FilterSnapshot = {
-  search: '',
-  category: ALL_CATEGORIES,
-  maxPrice: null,
-  selectedSizes: [],
-  minRating: 0,
-}
-
-const badgeClass: Record<string, string> = {
-  Bestseller: 'bg-[#b27a10] text-white',
-  'Pure comb': 'bg-[#4f8245] text-white',
-  'Limited harvest': 'bg-[#f7d4cd] text-[#8b342a]',
-  'New season': 'bg-[#dbe8c9] text-[#385b2e]',
-}
-const defaultBadgeClass = 'bg-[#173f32] text-white'
-
-function money(value: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
-}
-
-function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <span className="catalog-tooltip group/tip relative inline-grid">
-      {children}
-      <span className="pointer-events-none absolute bottom-[calc(100%+.55rem)] left-1/2 z-30 w-max max-w-48 -translate-x-1/2 rounded-lg bg-[#173f32] px-2.5 py-1.5 text-center text-[10px] font-medium text-white opacity-0 shadow-xl transition duration-200 group-hover/tip:translate-y-[-2px] group-hover/tip:opacity-100 group-focus-within/tip:opacity-100" role="tooltip">{label}</span>
-    </span>
+    <fieldset className="border-b border-[var(--sf-line)] py-4 last:border-0">
+      <legend className="mb-2 float-left w-full text-[13px] font-extrabold uppercase tracking-[.08em] text-[var(--sf-ink)]">{title}</legend>
+      <div className="clear-both grid gap-0.5">{children}</div>
+    </fieldset>
   )
 }
 
-function Rating({ rating, reviews }: Pick<CatalogProduct, 'rating' | 'reviews'>) {
+function PriceFilter({ params, facets, onChange }: { params: CatalogParams; facets: Facets; onChange: (patch: Partial<CatalogParams>) => void }) {
+  const bands = useMemo(() => priceBands(facets.price.min, facets.price.max), [facets.price.min, facets.price.max])
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const value = (name: string) => (String(form.get(name) ?? '').trim() === '' ? null : Math.max(0, Number(form.get(name))))
+    let [min, max] = [value('min'), value('max')]
+    if (min !== null && max !== null && min > max) [min, max] = [max, min]
+    onChange({ minPrice: min, maxPrice: max })
+  }
+  const label = (band: { min: number | null; max: number | null }) =>
+    band.min === null ? `Under ${formatMoney(band.max!)}` : band.max === null ? `Over ${formatMoney(band.min)}` : `${formatMoney(band.min)} – ${formatMoney(band.max)}`
   return (
-    <div className="flex items-center gap-1.5" aria-label={`${rating} out of 5 stars, ${reviews} reviews`}>
-      <span className="flex text-[#d6941a]" aria-hidden="true">
-        {Array.from({ length: 5 }, (_, index) => <Star key={index} size={12} fill="currentColor" strokeWidth={1.5} />)}
-      </span>
-      <span className="text-[11px] font-semibold text-stone-700">{rating}</span>
-      <span className="text-[10px] text-stone-400">({reviews})</span>
-    </div>
-  )
-}
-
-function ProductCard({ product, view, wished, onWish, onAdd }: {
-  product: CatalogProduct; view: ViewMode; wished: boolean; onWish: () => void; onAdd: () => void
-}) {
-  const discount = product.compareAtPrice ? Math.round((1 - product.price / product.compareAtPrice) * 100) : 0
-  return (
-    <article className={`honey-product-card group ${view === 'list' ? 'honey-product-list' : ''}`}>
-      <div className="honey-product-media">
-        {product.badge && <span className={`absolute left-3 top-3 z-10 rounded-full px-2.5 py-1 text-[8px] font-bold uppercase tracking-[.1em] ${badgeClass[product.badge] ?? defaultBadgeClass}`}>{product.badge}</span>}
-        <Tooltip label={wished ? 'Remove from wishlist' : 'Save to wishlist'}>
-          <button className={`product-wish ${wished ? 'is-wished' : ''}`} type="button" onClick={onWish} aria-label={wished ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}>
-            <Heart size={16} fill={wished ? 'currentColor' : 'none'} />
+    <FilterGroup title="Price">
+      {bands.map((band) => {
+        const active = params.minPrice === band.min && params.maxPrice === band.max
+        return (
+          <button key={label(band)} type="button" aria-pressed={active} className={`sf-check text-left ${active ? '!font-bold !text-[var(--sf-ink)]' : ''}`} onClick={() => onChange(active ? { minPrice: null, maxPrice: null } : { minPrice: band.min, maxPrice: band.max })}>
+            {label(band)}
           </button>
-        </Tooltip>
-        <a className="block h-full" href={`#product/${product.slug}`} aria-label={`View ${product.name}`}><img src={product.image} alt={product.origin ? `${product.name} from ${product.origin}` : product.name} loading="lazy" /></a>
-        {product.origin && <span className="product-origin"><MapPin size={11} /> {product.origin}</span>}
-      </div>
-      <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3"><Rating rating={product.rating} reviews={product.reviews} /><span className="text-[10px] font-medium text-stone-400">{product.size}</span></div>
-        <h3 className="mt-2 font-display text-[1.35rem] font-bold leading-tight text-[#1d3028] transition-colors group-hover:text-[#9b6426]"><a href={`#product/${product.slug}`}>{product.name}</a></h3>
-        <p className="mt-2 line-clamp-2 text-[11px] leading-[1.65] text-stone-500">{product.subtitle}</p>
-        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
-          <div><strong className="text-xl font-semibold text-[#4f7f46]">{money(product.price)}</strong>{product.compareAtPrice && <><span className="ml-2 text-[10px] text-stone-400 line-through">{money(product.compareAtPrice)}</span><span className="ml-2 text-[9px] font-bold text-[#b94738]">{discount}% OFF</span></>}</div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button className="product-add disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={onAdd} disabled={!product.inStock}><ShoppingBag size={13} /> {product.inStock ? 'Add to cart' : 'Sold out'}</button>
-          <Tooltip label={`Buy ${product.name} now`}><a className="product-details" href={`#product/${product.slug}`}>Buy now</a></Tooltip>
-        </div>
-      </div>
-    </article>
+        )
+      })}
+      <form className="mt-2 flex items-center gap-2" onSubmit={submit} key={`${params.minPrice}-${params.maxPrice}`}>
+        <label className="sf-sr-only" htmlFor="price-min">Minimum price</label>
+        <input id="price-min" name="min" type="number" min={0} inputMode="numeric" placeholder="Min" defaultValue={params.minPrice ?? ''} className="sf-input !min-h-[38px] !px-2.5 text-sm" />
+        <span aria-hidden="true">–</span>
+        <label className="sf-sr-only" htmlFor="price-max">Maximum price</label>
+        <input id="price-max" name="max" type="number" min={0} inputMode="numeric" placeholder="Max" defaultValue={params.maxPrice ?? ''} className="sf-input !min-h-[38px] !px-2.5 text-sm" />
+        <button type="submit" className="sf-btn sf-btn-outline sf-btn-sm !min-h-[38px] !px-3">Go</button>
+      </form>
+    </FilterGroup>
   )
 }
 
-function FilterPanel({ idPrefix, categories, sizes, priceFloor, priceCeiling, search, setSearch, category, setCategory, maxPrice, setMaxPrice, selectedSizes, toggleSize, minRating, setMinRating, clear, onApply, isLoading }: {
-  idPrefix: string
-  categories: string[]; sizes: string[]; priceFloor: number; priceCeiling: number
-  search: string; setSearch: (value: string) => void
-  category: string; setCategory: (value: string) => void; maxPrice: number | null; setMaxPrice: (value: number) => void
-  selectedSizes: string[]; toggleSize: (size: string) => void; minRating: number; setMinRating: (value: number) => void; clear: () => void
-  onApply: () => void; isLoading: boolean
-}) {
-  const searchId = `${idPrefix}-honey-search`
-  const priceCap = maxPrice ?? priceCeiling
+function CategoryFilter({ categories, params, facets, onChange }: { categories: CategoryNode[]; params: CatalogParams; facets: Facets; onChange: (patch: Partial<CatalogParams>) => void }) {
   return (
-    <div className="catalog-filter-inner">
-      <div className="filter-panel-heading"><div><SlidersHorizontal size={16} /> Filters</div><button className="filter-clear" type="button" onClick={clear}>Clear all</button></div>
-      <div className="filter-group">
-        <label className="filter-label" htmlFor={searchId}>Search collection</label>
-        <div className="filter-search"><Search size={14} /><input id={searchId} placeholder="Wildflower, comb..." value={search} onChange={(event) => setSearch(event.target.value)} /></div>
-        <p className="filter-help">Results update after you select <strong>Apply filters</strong>.</p>
-      </div>
-      <div className="filter-group">
-        <div className="flex items-center justify-between"><span className="filter-label">Price range</span><span className="rounded-md bg-[#f2f4e8] px-2 py-1 text-[10px] font-semibold text-[#4f7f46]">Up to {money(priceCap)}</span></div>
-        <input className="price-slider mt-4 w-full" type="range" min={priceFloor} max={priceCeiling} step="100" value={priceCap} onChange={(event) => setMaxPrice(Number(event.target.value))} aria-label="Maximum price" />
-        <div className="filter-price-labels"><span>{money(priceFloor)}</span><span>{money(priceCeiling)}</span></div>
-      </div>
-      <fieldset className="filter-group"><legend className="filter-label">Category</legend><div className="mt-3 space-y-2.5">{categories.map((item) => <label className="filter-check" key={item}><input type="radio" name="category" checked={category === item} onChange={() => setCategory(item)} /><span className="fake-check">{category === item && <Check size={10} />}</span>{item}</label>)}</div></fieldset>
-      <fieldset className="filter-group"><legend className="filter-label">Customer rating</legend><div className="mt-3 space-y-2.5">{[4.8, 4.7, 4.5].map((rating) => <label className="filter-check" key={rating}><input type="radio" name="rating" checked={minRating === rating} onChange={() => setMinRating(rating)} /><span className="fake-radio" /> <span className="flex items-center gap-1.5 text-[#d6941a]"><Star size={12} fill="currentColor" /> <b className="text-xs font-semibold text-stone-700">{rating} & up</b></span></label>)}</div></fieldset>
-      <fieldset className="filter-group"><legend className="filter-label">Jar size</legend><div className="mt-3 flex flex-wrap gap-2">{sizes.map((size) => <button className={`size-filter ${selectedSizes.includes(size) ? 'is-active' : ''}`} type="button" key={size} onClick={() => toggleSize(size)}>{size}</button>)}</div></fieldset>
-      <div className="filter-note"><span><Leaf size={14} /> Nothing unnecessary</span>Every jar is raw, traceable and packed without artificial flavouring.</div>
-      <button className="filter-apply" type="button" onClick={onApply} disabled={isLoading}>
-        {isLoading ? <><span className="filter-spinner" /> Applying filters…</> : <><SlidersHorizontal size={13} /> Apply filters</>}
+    <FilterGroup title="Category">
+      <button type="button" aria-pressed={!params.category} className={`sf-check text-left ${!params.category ? '!font-bold !text-[var(--sf-ink)]' : ''}`} onClick={() => onChange({ category: null })}>
+        All products
       </button>
-    </div>
+      {categories.map((category) => {
+        const count = facets.categories.get(category.name) ?? 0
+        const active = params.category === category.name
+        return (
+          <button
+            key={category.name}
+            type="button"
+            aria-pressed={active}
+            disabled={!count && !active}
+            className={`sf-check text-left ${active ? '!font-bold !text-[var(--sf-ink)]' : ''} ${!count && !active ? 'is-disabled' : ''}`}
+            style={{ paddingLeft: `${category.depth * 14}px` }}
+            onClick={() => onChange({ category: active ? null : category.name })}
+          >
+            {category.name}<span className="sf-count">{count}</span>
+          </button>
+        )
+      })}
+    </FilterGroup>
   )
 }
 
-function CatalogLoading() {
+function FilterPanel({ categories, params, facets, onChange }: { categories: CategoryNode[]; params: CatalogParams; facets: Facets; onChange: (patch: Partial<CatalogParams>) => void }) {
   return (
-    <div className="catalog-loading" role="status" aria-live="polite" aria-label="Loading filtered honey products">
-      <div className="catalog-loading-message"><span className="loading-honey-drop" /><div><strong>Finding your perfect harvest</strong><small>Applying your filters…</small></div></div>
-      <div className="loading-card-grid" aria-hidden="true">
-        {Array.from({ length: 6 }, (_, index) => <div className="loading-product-card" key={index}><span className="loading-media" /><span className="loading-line loading-line-short" /><span className="loading-line" /><span className="loading-line loading-line-mid" /><span className="loading-button" /></div>)}
-      </div>
+    <div>
+      <CategoryFilter categories={categories} params={params} facets={facets} onChange={onChange} />
+      <FilterGroup title="Customer reviews">
+        {facets.ratings.map(({ value, count }) => {
+          const active = params.rating === value
+          return (
+            <button key={value} type="button" aria-pressed={active} disabled={!count && !active} className={`sf-check text-left ${!count && !active ? 'is-disabled' : ''} ${active ? '!font-bold !text-[var(--sf-ink)]' : ''}`} onClick={() => onChange({ rating: active ? 0 : value })}>
+              <Stars value={value} size={15} /> <span>&amp; up</span><span className="sf-sr-only">{value} stars and up</span><span className="sf-count">{count}</span>
+            </button>
+          )
+        })}
+      </FilterGroup>
+      <PriceFilter params={params} facets={facets} onChange={onChange} />
+      {facets.sizes.length > 0 && (
+        <FilterGroup title="Pack size">
+          {facets.sizes.map(({ value, count }) => (
+            <label key={value} className={`sf-check ${!count && !params.sizes.includes(value) ? 'is-disabled' : ''}`}>
+              <input
+                type="checkbox"
+                checked={params.sizes.includes(value)}
+                disabled={!count && !params.sizes.includes(value)}
+                onChange={() => onChange({ sizes: params.sizes.includes(value) ? params.sizes.filter((size) => size !== value) : [...params.sizes, value] })}
+              />
+              {value}<span className="sf-count">{count}</span>
+            </label>
+          ))}
+        </FilterGroup>
+      )}
+      <FilterGroup title="Availability">
+        <label className="sf-check">
+          <input type="checkbox" checked={params.availability === 'in-stock'} onChange={() => onChange({ availability: params.availability === 'in-stock' ? 'all' : 'in-stock' })} />
+          In stock only<span className="sf-count">{facets.inStock}</span>
+        </label>
+        <label className={`sf-check ${!facets.deals && !params.deals ? 'is-disabled' : ''}`}>
+          <input type="checkbox" checked={params.deals} disabled={!facets.deals && !params.deals} onChange={() => onChange({ deals: !params.deals })} />
+          Deals &amp; discounts<span className="sf-count">{facets.deals}</span>
+        </label>
+      </FilterGroup>
     </div>
   )
 }
 
-export function CategoryPage({ products }: CategoryPageProps) {
-  const [sort, setSort] = useState<CatalogSort>('featured')
-  const [search, setSearch] = useState(defaultFilters.search)
-  const [view, setView] = useState<ViewMode>('grid')
-  const [category, setCategory] = useState<string>(defaultFilters.category)
-  const [maxPrice, setMaxPrice] = useState(defaultFilters.maxPrice)
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(defaultFilters.selectedSizes)
-  const [minRating, setMinRating] = useState(defaultFilters.minRating)
-  const [appliedFilters, setAppliedFilters] = useState<FilterSnapshot>(defaultFilters)
-  const [isLoading, setIsLoading] = useState(false)
-  const dispatch = useAppDispatch()
-  const wished = useAppSelector((state) => state.commerce.wishlist)
+function ActiveFilters({ params, onChange }: { params: CatalogParams; onChange: (patch: Partial<CatalogParams>) => void }) {
+  const chips: Array<{ label: string; clear: Partial<CatalogParams> }> = []
+  if (params.q) chips.push({ label: `“${params.q}”`, clear: { q: '' } })
+  if (params.category) chips.push({ label: params.category, clear: { category: null } })
+  if (params.rating) chips.push({ label: `${params.rating}★ & up`, clear: { rating: 0 } })
+  if (params.minPrice !== null || params.maxPrice !== null) {
+    chips.push({ label: params.maxPrice === null ? `Over ${formatMoney(params.minPrice!)}` : params.minPrice === null ? `Under ${formatMoney(params.maxPrice)}` : `${formatMoney(params.minPrice)} – ${formatMoney(params.maxPrice)}`, clear: { minPrice: null, maxPrice: null } })
+  }
+  params.sizes.forEach((size) => chips.push({ label: size, clear: { sizes: params.sizes.filter((item) => item !== size) } }))
+  if (params.availability === 'in-stock') chips.push({ label: 'In stock', clear: { availability: 'all' } })
+  if (params.deals) chips.push({ label: 'Deals', clear: { deals: false } })
+  if (!chips.length) return null
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Active filters">
+      {chips.map((chip) => (
+        <button key={chip.label} type="button" className="sf-chip" onClick={() => onChange(chip.clear)} aria-label={`Remove filter ${chip.label}`}>
+          {chip.label} <X size={13} aria-hidden="true" />
+        </button>
+      ))}
+      <button type="button" className="sf-link text-sm" onClick={() => onChange({ q: '', category: null, rating: 0, minPrice: null, maxPrice: null, sizes: [], availability: 'all', deals: false })}>Clear all</button>
+    </div>
+  )
+}
+
+function Pagination({ page, pageCount, onPage }: { page: number; pageCount: number; onPage: (page: number) => void }) {
+  if (pageCount <= 1) return null
+  const pages = Array.from({ length: pageCount }, (_, index) => index + 1).filter((item) => item === 1 || item === pageCount || Math.abs(item - page) <= 1)
+  return (
+    <nav className="mt-10 flex flex-wrap items-center justify-center gap-2" aria-label="Pagination">
+      <button type="button" className="sf-btn sf-btn-outline sf-btn-sm" disabled={page === 1} onClick={() => onPage(page - 1)}><ChevronLeft size={15} /> Previous</button>
+      {pages.map((item, index) => (
+        <span key={item} className="flex items-center gap-2">
+          {index > 0 && item - pages[index - 1] > 1 && <span aria-hidden="true">…</span>}
+          <button type="button" className={`sf-chip !min-h-[36px] !min-w-[36px] justify-center ${item === page ? 'is-active' : ''}`} aria-current={item === page ? 'page' : undefined} aria-label={`Page ${item}`} onClick={() => onPage(item)}>{item}</button>
+        </span>
+      ))}
+      <button type="button" className="sf-btn sf-btn-outline sf-btn-sm" disabled={page === pageCount} onClick={() => onPage(page + 1)}>Next <ChevronRight size={15} /></button>
+    </nav>
+  )
+}
+
+export const CategoryPage = memo(function CategoryPage() {
+  // the hero background is this page's largest paint
+  preload(categoryHeroBg, { as: 'image', fetchPriority: 'high' })
+  const route = useRoute()
+  const { products, categories, isLoading, isError, refetch } = useCatalog()
+  const config = useStorefrontConfig()
+  const params = useMemo(() => parseCatalogParams(route.params), [route.params])
+  const [view, setView] = useState<ViewMode>(readView)
   const [filterOpen, setFilterOpen] = useState(false)
-  const applyTimer = useRef<number | null>(null)
-  const categories = useMemo(() => [ALL_CATEGORIES, ...uniqueCategories(products)], [products])
-  const sizes = useMemo(() => Array.from(new Set(products.map((product) => product.size).filter(Boolean))), [products])
-  const priceFloor = useMemo(() => Math.floor(Math.min(...products.map((product) => product.price), 0) / 100) * 100, [products])
-  const priceCeiling = useMemo(() => Math.max(Math.ceil(Math.max(...products.map((product) => product.price), 0) / 100) * 100, priceFloor + 100), [products, priceFloor])
+  const resultsRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => () => {
-    if (applyTimer.current) window.clearTimeout(applyTimer.current)
-  }, [])
+  const { results, facets } = useMemo(() => queryCatalog(products, categories, params), [products, categories, params])
+  const { items, page, pageCount } = paginate(results, params.page)
+  const filterCount = activeFilterCount(params)
 
-  const visible = useMemo(() => {
-    const query = appliedFilters.search.trim().toLocaleLowerCase()
-    const result = products.filter((product) => (!query || `${product.name} ${product.subtitle} ${product.origin} ${product.category}`.toLocaleLowerCase().includes(query)) && (appliedFilters.category === ALL_CATEGORIES || product.category === appliedFilters.category) && (appliedFilters.maxPrice === null || product.price <= appliedFilters.maxPrice) && product.rating >= appliedFilters.minRating && (!appliedFilters.selectedSizes.length || appliedFilters.selectedSizes.includes(product.size)))
-    return [...result].sort((a, b) => sort === 'price-low' ? a.price - b.price : sort === 'price-high' ? b.price - a.price : sort === 'rating' ? b.rating - a.rating : sort === 'newest' ? b.createdAt.localeCompare(a.createdAt) : Number(Boolean(b.badge)) - Number(Boolean(a.badge)))
-  }, [products, appliedFilters, sort])
-  const clear = () => {
-    if (applyTimer.current) window.clearTimeout(applyTimer.current)
-    applyTimer.current = null
-    setSearch(defaultFilters.search)
-    setCategory(defaultFilters.category)
-    setMaxPrice(defaultFilters.maxPrice)
-    setSelectedSizes(defaultFilters.selectedSizes)
-    setMinRating(defaultFilters.minRating)
-    setAppliedFilters(defaultFilters)
-    setIsLoading(false)
+  const update = (patch: Partial<CatalogParams>) => {
+    const next = { ...params, ...patch, page: patch.page ?? 1 }
+    if ('q' in patch && !patch.q && next.sort === 'relevance') next.sort = 'featured'
+    navigate(buildHash(route.path || 'honey', toQueryRecord(next)))
   }
-  const toggleSize = (size: string) => setSelectedSizes((current) => current.includes(size) ? current.filter((item) => item !== size) : [...current, size])
-  const applyFilters = () => {
-    if (applyTimer.current) window.clearTimeout(applyTimer.current)
-    setIsLoading(true)
-    applyTimer.current = window.setTimeout(() => {
-      setAppliedFilters({ search, category, maxPrice, selectedSizes: [...selectedSizes], minRating })
-      setIsLoading(false)
-      setFilterOpen(false)
-      applyTimer.current = null
-    }, 700)
+  const goToPage = (target: number) => {
+    update({ page: target })
+    resultsRef.current?.scrollIntoView({ block: 'start' })
   }
-  const resetResults = () => {
-    clear()
+  const changeView = (mode: ViewMode) => {
+    setView(mode)
+    try {
+      localStorage.setItem(VIEW_KEY, mode)
+    } catch {
+      // per-browser preference only
+    }
   }
+
+  // keep the page title meaningful for history, bookmarks and screen readers
+  useEffect(() => {
+    const title = params.q ? `Results for “${params.q}”` : params.category ?? 'All products'
+    document.title = `${title} · Bossco`
+    return () => { document.title = 'Bossco' }
+  }, [params.q, params.category])
+
+  const trail = categoryTrail(categories, params.category)
+  const crumbs: Crumb[] = [{ label: 'Home', href: '#home' }, { label: 'All products', href: '#honey' }, ...trail.map((name) => ({ label: name, href: buildHash('honey', { category: name }) }))]
+  if (params.q) crumbs.push({ label: `Search: “${params.q}”` })
+  const heading = params.q ? `Results for “${params.q}”` : params.category ?? 'The full collection'
+  const freeShipping = config?.shippingOptions.some((option) => option.amount === 0)
+  const first = (page - 1) * 12 + 1
 
   return (
     <main id="home">
       <section className="category-hero">
         <div className="category-hero-image" style={{ backgroundImage: `url("${categoryHeroBg}")` }} aria-hidden="true" />
         <div className="category-hero-glow" aria-hidden="true" />
-        <div className="relative z-10 mx-auto flex min-h-[430px] max-w-[1440px] items-center px-5 py-16 sm:px-8 lg:px-14">
-          <div className="max-w-[660px] category-hero-copy">
-            <nav className="mb-6 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#eed6aa]" aria-label="Breadcrumb"><a className="hover:text-white" href="#home">Home</a><span>/</span><a className="hover:text-white" href="#catalog">Collection</a><span>/</span><span className="text-white">Honey</span></nav>
-            <span className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.22em] text-[#e8bd71]"><Sparkles size={13} /> Small-batch · Raw · Traceable</span>
-            <h1 className="font-display text-[3.2rem] font-bold leading-[.94] tracking-[-.025em] text-white sm:text-[4.8rem]">Nature’s gold,<br /><em className="font-semibold text-[#efc87e]">bottled slowly.</em></h1>
-            <p className="mt-6 max-w-[570px] text-sm leading-7 text-white/75 sm:text-base">Discover rare honey gathered from forest, meadow and mountain bloom — untouched by heat and fully traceable to its native landscape.</p>
-            <div className="mt-8 flex flex-wrap items-center gap-5 text-[10px] font-semibold uppercase tracking-[.12em] text-white/75"><span className="flex items-center gap-2"><ShieldCheck size={16} className="text-[#e8bd71]" /> Lab tested</span><span className="h-4 w-px bg-white/20" /><span className="flex items-center gap-2"><PackageCheck size={16} className="text-[#e8bd71]" /> Freshly packed</span><span className="h-4 w-px bg-white/20" /><span className="flex items-center gap-2"><Truck size={16} className="text-[#e8bd71]" /> Free over ₹999</span></div>
+        <div className="relative z-10 mx-auto flex min-h-[300px] max-w-[1440px] items-center px-5 py-12 sm:px-8 lg:min-h-[360px] lg:px-14">
+          <div className="category-hero-copy max-w-[660px]">
+            <Breadcrumbs items={crumbs} className="mb-5 [&_.sf-breadcrumbs]:text-[#eed6aa] [&_[aria-current]]:!text-white [&_a:hover]:!text-white" />
+            <span className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.22em] text-[#e8bd71]"><Sparkles size={13} /> Small-batch · Natural · Traceable</span>
+            <h1 className="font-display text-[2.8rem] font-bold leading-[.95] tracking-[-.025em] text-white sm:text-[4.2rem]">{heading}</h1>
+            <p className="mt-5 max-w-[570px] text-sm leading-7 text-white/75 sm:text-base">Nuts, sun-dried fruit and raw honey, freshly packed after you order and priced live from our store.</p>
+            <div className="mt-7 flex flex-wrap items-center gap-5 text-[10px] font-semibold uppercase tracking-[.12em] text-white/75">
+              <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-[#e8bd71]" /> Quality tested</span>
+              <span className="h-4 w-px bg-white/20" />
+              <span className="flex items-center gap-2"><PackageCheck size={16} className="text-[#e8bd71]" /> Freshly packed</span>
+              {freeShipping && <><span className="h-4 w-px bg-white/20" /><span className="flex items-center gap-2"><Truck size={16} className="text-[#e8bd71]" /> Free standard shipping</span></>}
+            </div>
           </div>
         </div>
-        <a className="hero-scroll-cue" href="#catalog" aria-label="Scroll to collection"><span>Explore the harvest</span><ChevronDown size={16} /></a>
+        <a className="hero-scroll-cue" href="#catalog" onClick={(event) => { event.preventDefault(); resultsRef.current?.scrollIntoView() }} aria-label="Scroll to products"><span>Browse products</span><ChevronDown size={16} /></a>
       </section>
 
-      <section className="catalog-section" id="catalog">
-        <div className="catalog-orb catalog-orb-one" aria-hidden="true" /><div className="catalog-orb catalog-orb-two" aria-hidden="true" />
-        <div className="relative mx-auto max-w-[1440px] px-5 py-16 sm:px-8 lg:px-14 lg:py-24">
-          <div className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-            <div><span className="eyebrow flex items-center gap-3 text-[10px] font-bold uppercase tracking-[.2em] text-[#a46a2a]">The honey room</span><h2 className="mt-3 font-display text-4xl font-bold text-[#193f32] sm:text-5xl">A harvest for every palate</h2><p className="mt-3 max-w-xl text-sm leading-6 text-stone-500">Single-origin jars and thoughtful pairings, sourced in limited seasonal batches.</p></div>
-            <div className="flex items-center gap-2 text-[11px] text-stone-500"><Info size={14} className="text-[#a46a2a]" /> Hover over icons for helpful details</div>
-          </div>
-
-          <div className="catalog-toolbar">
-            <div><b className="font-display text-xl text-[#244538]">Honey varieties</b><span className="ml-2 text-[11px] text-stone-400">{visible.length} of {products.length} products</span></div>
+      <section className="bg-[var(--sf-canvas)]" id="catalog" aria-label="Products">
+        <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-8 lg:px-14 lg:py-12" ref={resultsRef} style={{ scrollMarginTop: 150 }}>
+          <div className="mb-5 flex flex-col gap-3 border-b border-[var(--sf-line)] pb-4 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-[var(--sf-ink-soft)]" aria-live="polite">
+              {isLoading ? 'Loading products…' : results.length ? <><b className="text-[var(--sf-ink)]">{first}–{first + items.length - 1}</b> of <b className="text-[var(--sf-ink)]">{results.length}</b> results{params.q ? <> for <b className="text-[var(--sf-deal)]">“{params.q}”</b></> : null}</> : 'No results'}
+            </p>
             <div className="flex items-center gap-2">
-              <button className="mobile-filter-button" type="button" onClick={() => setFilterOpen(true)}><Filter size={14} /> Filters</button>
-              <label className="sort-control"><span>Sort</span><select value={sort} onChange={(event) => setSort(event.target.value as CatalogSort)}><option value="featured">Featured</option><option value="newest">Newest first</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="rating">Top rated</option></select><ChevronDown size={13} /></label>
-              <div className="view-switch" aria-label="View mode"><Tooltip label="Grid view"><button className={view === 'grid' ? 'is-active' : ''} onClick={() => setView('grid')} aria-label="Grid view" type="button"><Grid2X2 size={15} /></button></Tooltip><Tooltip label="List view"><button className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')} aria-label="List view" type="button"><LayoutList size={16} /></button></Tooltip></div>
+              <button className="sf-btn sf-btn-outline sf-btn-sm lg:!hidden" type="button" onClick={() => setFilterOpen(true)} aria-haspopup="dialog">
+                <Filter size={14} /> Filters{filterCount ? ` (${filterCount})` : ''}
+              </button>
+              <label className="flex items-center gap-2 text-sm">
+                <span className="hidden text-[var(--sf-muted)] sm:inline">Sort by</span>
+                <select className="sf-select" value={params.sort} onChange={(event) => update({ sort: event.target.value as CatalogListSort })}>
+                  {(Object.keys(SORT_LABELS) as CatalogListSort[]).filter((sort) => sort !== 'relevance' || params.q).map((sort) => <option key={sort} value={sort}>{SORT_LABELS[sort]}</option>)}
+                </select>
+              </label>
+              <div className="view-switch" role="group" aria-label="View">
+                <button className={view === 'grid' ? 'is-active' : ''} onClick={() => changeView('grid')} aria-pressed={view === 'grid'} aria-label="Grid view" type="button"><Grid2X2 size={15} /></button>
+                <button className={view === 'list' ? 'is-active' : ''} onClick={() => changeView('list')} aria-pressed={view === 'list'} aria-label="List view" type="button"><LayoutList size={16} /></button>
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[245px_1fr] xl:grid-cols-[265px_1fr]">
-            <aside className="catalog-filter"><FilterPanel idPrefix="desktop" {...{ categories, sizes, priceFloor, priceCeiling, search, setSearch, category, setCategory, maxPrice, setMaxPrice, selectedSizes, toggleSize, minRating, setMinRating, clear, onApply: applyFilters, isLoading }} /></aside>
-            <div className="catalog-results-shell">
-              {isLoading ? <CatalogLoading /> : visible.length ? (
-                <div className={`product-catalog-grid ${view === 'list' ? 'is-list' : ''}`}>
-                  {visible.map((product) => {
-                    const isWished = wished.includes(product.id)
-                    return (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        view={view}
-                        wished={isWished}
-                        onWish={() => {
-                          dispatch(toggleWishlist(product.id))
-                          if (isWished) {
-                            toast.info('Removed from Wishlist', { description: `${product.name} removed.` })
-                          } else {
-                            toast.success('Added to Wishlist! ❤️', { description: `${product.name} saved to collection.` })
-                          }
-                        }}
-                        onAdd={() => {
-                          dispatch(addToCart({ productId: product.id, quantity: 1, weight: product.size }))
-                          toast.success('Added to Cart! 🛒', { description: `${product.name} (${product.size}) added to your bag.` })
-                        }}
-                      />
-                    )
-                  })}
+          <div className="grid gap-8 lg:grid-cols-[250px_1fr]">
+            <aside className="hidden lg:block" aria-label="Filters">
+              <div className="sticky top-[150px]">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-extrabold">Filters</h2>
+                  {filterCount > 0 && <button type="button" className="sf-link text-sm" onClick={() => update({ category: null, rating: 0, minPrice: null, maxPrice: null, sizes: [], availability: 'all', deals: false })}>Clear ({filterCount})</button>}
                 </div>
-              ) : <div className="catalog-empty"><Minus size={24} /><h3>No jars match those filters</h3><p>Try widening your price or removing a size.</p><button type="button" onClick={resetResults}>Reset filters</button></div>}
+                {!isLoading && <FilterPanel categories={categories} params={params} facets={facets} onChange={update} />}
+              </div>
+            </aside>
+
+            <div className="min-w-0">
+              <ActiveFilters params={params} onChange={update} />
+              {isError ? (
+                <ErrorState title="We couldn’t load the products" onRetry={() => void refetch()} />
+              ) : isLoading ? (
+                <ProductGridSkeleton count={6} />
+              ) : results.length ? (
+                <>
+                  <h2 className="sf-sr-only">{heading}</h2>
+                  <ul className={`sf-grid ${view === 'list' ? 'sf-grid-list' : ''}`}>
+                    {items.map((product, index) => (
+                      <li key={product.id} className="contents"><ProductTile product={product} layout={view} priority={index < 3} /></li>
+                    ))}
+                  </ul>
+                  <Pagination page={page} pageCount={pageCount} onPage={goToPage} />
+                </>
+              ) : (
+                <EmptyState
+                  icon={<SearchX size={24} />}
+                  title={params.q ? `No results for “${params.q}”` : 'No products match these filters'}
+                  action={<button type="button" className="sf-btn sf-btn-primary sf-btn-sm" onClick={() => update({ q: '', category: null, rating: 0, minPrice: null, maxPrice: null, sizes: [], availability: 'all', deals: false })}>Clear search and filters</button>}
+                >
+                  Try a different spelling, fewer words, or remove a filter.
+                </EmptyState>
+              )}
             </div>
           </div>
         </div>
@@ -271,8 +322,17 @@ export function CategoryPage({ products }: CategoryPageProps) {
       <StatsBand />
       <NewsletterSection />
 
-      {filterOpen && <div className="filter-drawer-backdrop" role="presentation" onClick={() => setFilterOpen(false)}><aside className="filter-drawer" role="dialog" aria-modal="true" aria-label="Product filters" onClick={(event) => event.stopPropagation()}><div className="mb-4 flex items-center justify-between"><b className="font-display text-2xl text-[#193f32]">Refine your harvest</b><button className="icon-button" type="button" onClick={() => setFilterOpen(false)} aria-label="Close filters"><X size={19} /></button></div><FilterPanel idPrefix="mobile" {...{ categories, sizes, priceFloor, priceCeiling, search, setSearch, category, setCategory, maxPrice, setMaxPrice, selectedSizes, toggleSize, minRating, setMinRating, clear, onApply: applyFilters, isLoading }} /></aside></div>}
+      <Modal
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title={`Filters${filterCount ? ` (${filterCount})` : ''}`}
+        variant="left"
+        footer={<button type="button" className="sf-btn sf-btn-primary sf-btn-block" onClick={() => setFilterOpen(false)}>Show {results.length} results</button>}
+      >
+        <FilterPanel categories={categories} params={params} facets={facets} onChange={update} />
+        {filterCount > 0 && <button type="button" className="sf-btn sf-btn-ghost sf-btn-sm mt-2" onClick={() => update({ category: null, rating: 0, minPrice: null, maxPrice: null, sizes: [], availability: 'all', deals: false })}>Clear all filters</button>}
+      </Modal>
       <Footer />
     </main>
   )
-}
+})
