@@ -99,7 +99,7 @@ export function ScrollProgress({ route }: ScrollProgressProps) {
       {/* Top Reading Progress Bar */}
       <div
         className="pointer-events-none fixed inset-x-0 top-0 z-[100000] h-[4px] bg-stone-900/10 dark:bg-stone-100/10 backdrop-blur-[1px]"
-        aria-label="Reading progress"
+        aria-hidden="true"
       >
         <div
           ref={readingBarRef}

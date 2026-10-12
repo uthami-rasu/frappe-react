@@ -97,7 +97,7 @@ function App() {
   else page = <HomePage />
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 transition-colors duration-300 dark:bg-stone-950 dark:text-stone-50">
+    <div className="min-h-screen overflow-x-clip bg-stone-50 text-stone-900 transition-colors duration-300 dark:bg-stone-950 dark:text-stone-50">
       <a href="#main-content" className="sf-skip-link" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
       <Toaster
         position="bottom-right"

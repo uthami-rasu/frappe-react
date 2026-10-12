@@ -13,7 +13,7 @@ export function BenefitCard({ title, description, icon }: BenefitCardProps) {
       <h2 className="text-[16px] font-semibold text-stone-700 dark:text-stone-100">
         {title}
       </h2>
-      <p className="mt-1 text-[11px] text-stone-400 dark:text-stone-500">
+      <p className="mt-1 text-[11px] text-stone-600 dark:text-stone-400">
         {description}
       </p>
       <span className="absolute bottom-0 h-1 w-20 rounded-t-full bg-[#e6b577] transition-all duration-300 group-hover:w-28" />

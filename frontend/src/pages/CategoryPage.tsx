@@ -267,7 +267,7 @@ export const CategoryPage = memo(function CategoryPage() {
               </button>
               <label className="flex items-center gap-2 text-sm">
                 <span className="hidden text-[var(--sf-muted)] sm:inline">Sort by</span>
-                <select className="sf-select" value={params.sort} onChange={(event) => update({ sort: event.target.value as CatalogListSort })}>
+                <select className="sf-select" aria-label="Sort by" value={params.sort} onChange={(event) => update({ sort: event.target.value as CatalogListSort })}>
                   {(Object.keys(SORT_LABELS) as CatalogListSort[]).filter((sort) => sort !== 'relevance' || params.q).map((sort) => <option key={sort} value={sort}>{SORT_LABELS[sort]}</option>)}
                 </select>
               </label>

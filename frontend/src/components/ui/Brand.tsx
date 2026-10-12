@@ -14,7 +14,7 @@ export function Brand() {
       />
       <span className="flex flex-col justify-center text-[#173f32] dark:text-stone-50">
         <span className="text-[1.1rem] font-bold leading-none tracking-[.19em] sm:text-[1.3rem]">BOSSCO</span>
-        <span className="mt-1.5 text-[8px] font-semibold uppercase leading-none tracking-[.24em] text-[#aa753a]">Nuts • Naturals</span>
+        <span className="mt-1.5 text-[8px] font-semibold uppercase leading-none tracking-[.24em] text-[#956631]">Nuts • Naturals</span>
       </span>
     </a>
   )
