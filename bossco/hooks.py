@@ -142,7 +142,17 @@ after_migrate = "bossco.install.after_migrate"
 doc_events = {
 	"Item": {
 		"validate": "bossco.storefront.set_store_slug",
-	}
+	},
+	# storefront order lifecycle: invoices and customer emails (see bossco/orders.py)
+	"Delivery Note": {
+		"on_submit": "bossco.orders.on_delivery_note_submit",
+	},
+	"Sales Order": {
+		"on_cancel": "bossco.orders.on_sales_order_cancel",
+	},
+	"Sales Invoice": {
+		"on_submit": "bossco.orders.on_sales_invoice_submit",
+	},
 }
 
 # Scheduled Tasks
@@ -241,4 +251,3 @@ doc_events = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-

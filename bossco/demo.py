@@ -2,6 +2,8 @@
 
 Run with: bench --site <site> execute bossco.demo.seed
 Safe to run again; existing Items and Item Groups are skipped.
+
+Demo promotions only: bench --site <site> execute bossco.demo.seed_offers
 """
 
 import os
@@ -26,12 +28,12 @@ NUTS = [
 ]
 
 HONEY = [
-	("HON-001", "Melora Raw Forest Honey", "Raw honey", "images/3719332c70605ffb0114496075fad17a1e6ecb5c.webp", 480, {"bossco_slug": "melora-raw-forest-honey", "bossco_subtitle": "Deep, malty and wonderfully complex — collected from untouched forest bloom.", "bossco_origin": "Western Ghats", "bossco_pack_size": "500g", "bossco_compare_at_price": 560, "bossco_rating": 4.9, "bossco_reviews": 124, "bossco_badge": "Bestseller"}, 50),
-	("HON-002", "Wild Hive Comb Honey", "Honeycomb", "category/ad0871d505385543f74adf1e567c5dca11365121.webp", 1250, {"bossco_slug": "wild-hive-comb-honey", "bossco_subtitle": "Silken raw honey sealed inside tender, edible beeswax comb.", "bossco_origin": "Nilgiri Hills", "bossco_pack_size": "350g", "bossco_rating": 4.8, "bossco_reviews": 89, "bossco_badge": "Pure comb"}, 50),
-	("HON-003", "Ancient Forest Artisanal", "Raw honey", "category/553672e3cda4d62fbb1c7965d98b61135fe083c3.webp", 890, {"bossco_slug": "ancient-forest-artisanal", "bossco_subtitle": "A dark amber harvest with soft woody notes and a long floral finish.", "bossco_origin": "Aravalli Forest", "bossco_pack_size": "450g", "bossco_compare_at_price": 990, "bossco_rating": 4.7, "bossco_reviews": 45, "bossco_badge": "Limited harvest"}, 50),
-	("HON-004", "Acacia Gold Honey", "Raw honey", "category/9282672b5437c3df697468cc9de9bce23693c139.webp", 620, {"bossco_slug": "acacia-gold-honey", "bossco_subtitle": "Pale, delicate and slow to crystallise, with a clean vanilla-like sweetness.", "bossco_origin": "Kashmir Valley", "bossco_pack_size": "250g", "bossco_rating": 4.8, "bossco_reviews": 76, "bossco_badge": "New season"}, 50),
-	("HON-005", "Saffron Infused Honey", "Infused honey", "images/ChatGPT Image Jun 10, 2026, 11_08_40 AM 1.webp", 780, {"bossco_slug": "saffron-infused-honey", "bossco_subtitle": "Raw mountain honey slowly rested with handpicked Kashmiri saffron.", "bossco_origin": "Pampore, Kashmir", "bossco_pack_size": "200g", "bossco_compare_at_price": 860, "bossco_rating": 4.9, "bossco_reviews": 53, "bossco_badge": "Bestseller"}, 50),
-	("HON-006", "The Honey Tasting Trio", "Gift sets", "images/8773eeca3cba18ea1f474f415ed58dd51b2c77ee.webp", 1490, {"bossco_slug": "honey-tasting-trio", "bossco_subtitle": "Three small-batch harvests gathered in a keepsake gifting box.", "bossco_origin": "Three Indian terroirs", "bossco_pack_size": "3 × 150g", "bossco_rating": 4.9, "bossco_reviews": 31, "bossco_badge": "Limited harvest"}, 50),
+	("HON-001", "Melora Raw Forest Honey", "Raw honey", "images/3719332c70605ffb0114496075fad17a1e6ecb5c.webp", 480, {"bossco_slug": "melora-raw-forest-honey", "bossco_subtitle": "Deep, malty and wonderfully complex — collected from untouched forest bloom.", "bossco_origin": "Western Ghats", "bossco_pack_size": "500g", "bossco_compare_at_price": 560, "bossco_badge": "Bestseller"}, 50),
+	("HON-002", "Wild Hive Comb Honey", "Honeycomb", "category/ad0871d505385543f74adf1e567c5dca11365121.webp", 1250, {"bossco_slug": "wild-hive-comb-honey", "bossco_subtitle": "Silken raw honey sealed inside tender, edible beeswax comb.", "bossco_origin": "Nilgiri Hills", "bossco_pack_size": "350g", "bossco_badge": "Pure comb"}, 50),
+	("HON-003", "Ancient Forest Artisanal", "Raw honey", "category/553672e3cda4d62fbb1c7965d98b61135fe083c3.webp", 890, {"bossco_slug": "ancient-forest-artisanal", "bossco_subtitle": "A dark amber harvest with soft woody notes and a long floral finish.", "bossco_origin": "Aravalli Forest", "bossco_pack_size": "450g", "bossco_compare_at_price": 990, "bossco_badge": "Limited harvest"}, 50),
+	("HON-004", "Acacia Gold Honey", "Raw honey", "category/9282672b5437c3df697468cc9de9bce23693c139.webp", 620, {"bossco_slug": "acacia-gold-honey", "bossco_subtitle": "Pale, delicate and slow to crystallise, with a clean vanilla-like sweetness.", "bossco_origin": "Kashmir Valley", "bossco_pack_size": "250g", "bossco_badge": "New season"}, 50),
+	("HON-005", "Saffron Infused Honey", "Infused honey", "images/ChatGPT Image Jun 10, 2026, 11_08_40 AM 1.webp", 780, {"bossco_slug": "saffron-infused-honey", "bossco_subtitle": "Raw mountain honey slowly rested with handpicked Kashmiri saffron.", "bossco_origin": "Pampore, Kashmir", "bossco_pack_size": "200g", "bossco_compare_at_price": 860, "bossco_badge": "Bestseller"}, 50),
+	("HON-006", "The Honey Tasting Trio", "Gift sets", "images/8773eeca3cba18ea1f474f415ed58dd51b2c77ee.webp", 1490, {"bossco_slug": "honey-tasting-trio", "bossco_subtitle": "Three small-batch harvests gathered in a keepsake gifting box.", "bossco_origin": "Three Indian terroirs", "bossco_pack_size": "3 × 150g", "bossco_badge": "Limited harvest"}, 50),
 ]
 
 TRENDING = [
@@ -49,13 +51,123 @@ def seed():
 	make_item_groups()
 	sort_order = 0
 	for rows, defaults in (
-		(NUTS, {"bossco_featured": 1, "bossco_pack_size": "500g", "bossco_rating": 4.8, "bossco_reviews": 65}),
+		(NUTS, {"bossco_featured": 1, "bossco_pack_size": "500g"}),
 		(HONEY, {}),
-		(TRENDING, {"bossco_trending": 1, "bossco_pack_size": "250g", "bossco_rating": 4.7, "bossco_reviews": 40}),
+		(TRENDING, {"bossco_trending": 1, "bossco_pack_size": "250g"}),
 	):
 		for item_code, item_name, group, image, price, extra, stock in rows:
 			sort_order += 1
 			make_item(item_code, item_name, group, image, price, {**defaults, **extra}, stock, sort_order)
+	seed_offers()
+	frappe.db.commit()
+
+
+# (coupon code, pricing rule fields, offers)
+DEMO_OFFERS = [
+	(
+		"WELCOME10",
+		{
+			"apply_on": "Transaction",
+			"apply_discount_on": "Net Total",
+			"rate_or_discount": "Discount Percentage",
+			"discount_percentage": 10,
+			"min_amt": 999,
+		},
+		[
+			{
+				"title": "10% off your first order",
+				"description": "New here? Take 10% off orders over ₹999 with code WELCOME10.",
+				"placement": "Popup",
+				"audience": "Everyone",
+				"priority": 10,
+				"max_uses_per_customer": 1,
+				"cta_label": "Start shopping",
+				"cta_link": "#honey",
+			},
+			{
+				"title": "Welcome offer: 10% off",
+				"description": "Orders over ₹999 · one use per customer",
+				"placement": "Home Banner",
+				"audience": "Everyone",
+				"priority": 10,
+				"max_uses_per_customer": 1,
+				"cta_label": "Shop the collection",
+				"cta_link": "#honey",
+			},
+		],
+	),
+	(
+		"HONEY15",
+		{
+			"apply_on": "Item Group",
+			"item_group": "Honey",
+			"rate_or_discount": "Discount Percentage",
+			"discount_percentage": 15,
+		},
+		[
+			{
+				"title": "15% off raw honey",
+				"description": "This week only, on every jar in the honey room.",
+				"placement": "Product Page",
+				"item_group": "Honey",
+				"audience": "Everyone",
+				"priority": 5,
+				"cta_label": "Browse honey",
+				"cta_link": "#honey?category=Honey",
+			},
+			{
+				"title": "Honey week: 15% off",
+				"description": "Raw, comb and infused honey — code HONEY15.",
+				"placement": "Home Banner",
+				"item_group": "Honey",
+				"audience": "Everyone",
+				"priority": 5,
+				"cta_label": "Browse honey",
+				"cta_link": "#honey?category=Honey",
+			},
+		],
+	),
+]
+
+
+def seed_offers():
+	"""Coupon-based demo promotions: Pricing Rule + Coupon Code + Storefront Offers. Valid 30 days."""
+	from frappe.utils import add_days, today
+
+	company = frappe.db.get_single_value("Global Defaults", "default_company")
+	for code, rule_fields, offers in DEMO_OFFERS:
+		if frappe.db.exists("Coupon Code", {"coupon_code": code}):
+			continue
+		item_group = rule_fields.pop("item_group", None)
+		rule = frappe.get_doc(
+			{
+				"doctype": "Pricing Rule",
+				"title": f"Storefront {code}",
+				"selling": 1,
+				"coupon_code_based": 1,
+				"price_or_product_discount": "Price",
+				"company": company,
+				"currency": "INR",
+				"valid_from": today(),
+				"valid_upto": add_days(today(), 30),
+				"item_groups": [{"item_group": item_group}] if item_group else [],
+				**rule_fields,
+			}
+		).insert()
+		coupon = frappe.get_doc(
+			{
+				"doctype": "Coupon Code",
+				"coupon_name": code,
+				"coupon_code": code,
+				"coupon_type": "Promotional",
+				"pricing_rule": rule.name,
+				"valid_from": today(),
+				"valid_upto": add_days(today(), 30),
+				"maximum_use": 500,
+			}
+		).insert()
+		for offer in offers:
+			frappe.get_doc({"doctype": "Storefront Offer", "coupon_code": coupon.name, **offer}).insert()
 	frappe.db.commit()
 
 

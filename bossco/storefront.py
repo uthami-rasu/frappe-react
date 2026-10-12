@@ -4,8 +4,13 @@ import re
 from collections import Counter
 
 import frappe
-from frappe.utils import cint, flt, getdate, strip_html_tags, today
+from frappe.utils import add_days, cint, flt, getdate, strip_html_tags, today
+from frappe.utils.html_utils import sanitize_html
 from frappe.website.utils import cleanup_page_name
+
+POPULARITY_DAYS = 90
+CACHE_SECONDS = 10 * 60
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif")
 
 ITEM_FIELDS = [
 	"item_code",
@@ -70,6 +75,7 @@ def get_store_products(item_codes=None, filters=None, or_filters=None):
 	codes = [item.item_code for item in items]
 	prices = get_prices(codes, get_store_settings().price_list)
 	stock = get_available_stock(codes)
+	sold = get_units_sold()
 
 	products = []
 	for item in items:
@@ -100,6 +106,7 @@ def get_store_products(item_codes=None, filters=None, or_filters=None):
 				"featured": bool(item.bossco_featured),
 				"trending": bool(item.bossco_trending),
 				"createdAt": str(item.creation),
+				"sold": sold.get(item.item_code, 0),
 			}
 		)
 	return products
@@ -220,3 +227,114 @@ def size_sort_key(size):
 		return (1, size)
 	amount, unit = float(match.group(1)), match.group(2)
 	return (0, amount * 1000 if unit in ("kg", "l") else amount)
+
+
+def get_units_sold():
+	"""{item_code: units on submitted Sales Orders in the last POPULARITY_DAYS}, cached briefly."""
+	key = "bossco:units_sold"
+	sold = frappe.cache.get_value(key)
+	if sold is None:
+		rows = frappe.db.sql(
+			"""select soi.item_code, sum(soi.qty) as qty
+			from `tabSales Order Item` soi join `tabSales Order` so on so.name = soi.parent
+			where so.docstatus = 1 and so.transaction_date >= %s
+			group by soi.item_code""",
+			add_days(today(), -POPULARITY_DAYS),
+			as_dict=True,
+		)
+		sold = {row.item_code: cint(row.qty) for row in rows}
+		frappe.cache.set_value(key, sold, expires_in_sec=CACHE_SECONDS)
+	return sold
+
+
+def get_bought_together(item_code, limit=8):
+	"""Items most often on the same submitted Sales Order as `item_code`."""
+	key = f"bossco:bought_together:{item_code}"
+	codes = frappe.cache.get_value(key)
+	if codes is None:
+		codes = frappe.db.sql_list(
+			"""select other.item_code
+			from `tabSales Order Item` this
+			join `tabSales Order Item` other on other.parent = this.parent and other.item_code != this.item_code
+			join `tabSales Order` so on so.name = this.parent
+			where this.item_code = %s and so.docstatus = 1
+			group by other.item_code
+			order by count(distinct this.parent) desc, other.item_code
+			limit %s""",
+			(item_code, limit),
+		)
+		frappe.cache.set_value(key, codes, expires_in_sec=CACHE_SECONDS)
+	return codes
+
+
+def get_item_images(item_code, main_image):
+	"""Main image first, then public images attached to the Item."""
+	files = frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": "Item",
+			"attached_to_name": item_code,
+			"is_private": 0,
+			"is_folder": 0,
+		},
+		fields=["file_url"],
+		order_by="creation asc",
+	)
+	images = [main_image] if main_image else []
+	for row in files:
+		url = row.file_url or ""
+		if url.lower().endswith(IMAGE_EXTENSIONS) and url not in images:
+			images.append(url)
+	return images
+
+
+def get_item_specs(item):
+	specs = [
+		("SKU", item.item_code),
+		("Brand", item.brand),
+		("Category", item.item_group),
+		("Pack size", item.bossco_pack_size),
+		("Origin", item.bossco_origin),
+		("Country of origin", item.country_of_origin),
+		(
+			"Net weight",
+			f"{flt(item.weight_per_unit, 3):g} {item.weight_uom}" if flt(item.weight_per_unit) else None,
+		),
+		("Shelf life", f"{cint(item.shelf_life_in_days)} days" if cint(item.shelf_life_in_days) else None),
+	]
+	return [{"label": label, "value": str(value)} for label, value in specs if value]
+
+
+def get_product_details(item_code):
+	item = frappe.db.get_value(
+		"Item",
+		{"item_code": item_code, "bossco_show_in_store": 1, "disabled": 0},
+		[
+			"item_code",
+			"item_name",
+			"item_group",
+			"image",
+			"description",
+			"brand",
+			"country_of_origin",
+			"weight_per_unit",
+			"weight_uom",
+			"shelf_life_in_days",
+			"bossco_pack_size",
+			"bossco_origin",
+		],
+		as_dict=True,
+	)
+	if not item:
+		return None
+
+	description = sanitize_html(item.description or "")
+	# ERPNext copies Item Name into Description by default; that adds nothing on the page
+	if strip_html_tags(description).strip() == item.item_name:
+		description = ""
+	return {
+		"id": item.item_code,
+		"description": description,
+		"images": get_item_images(item.item_code, item.image),
+		"specs": get_item_specs(item),
+	}

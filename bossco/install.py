@@ -1,12 +1,16 @@
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
+from bossco.email_templates import make_email_templates
+
 
 def after_install():
 	make_custom_fields()
+	make_email_templates()
 
 
 def after_migrate():
 	make_custom_fields()
+	make_email_templates()
 
 
 def make_custom_fields():
@@ -87,6 +91,9 @@ def get_custom_fields():
 				"fieldtype": "Float",
 				"label": "Rating",
 				"precision": "1",
+				"read_only": 1,
+				"no_copy": 1,
+				"description": "Average of published Storefront Reviews",
 				"insert_after": "bossco_compare_at_price",
 				"depends_on": "bossco_show_in_store",
 			},
@@ -94,6 +101,9 @@ def get_custom_fields():
 				"fieldname": "bossco_reviews",
 				"fieldtype": "Int",
 				"label": "Review Count",
+				"read_only": 1,
+				"no_copy": 1,
+				"description": "Number of published Storefront Reviews",
 				"insert_after": "bossco_rating",
 				"depends_on": "bossco_show_in_store",
 			},
@@ -144,6 +154,35 @@ def get_custom_fields():
 				"read_only": 1,
 				"no_copy": 1,
 				"insert_after": "bossco_payment_method",
+			},
+			{
+				"fieldname": "bossco_checkout_key",
+				"fieldtype": "Data",
+				"label": "Checkout Key",
+				"description": "One per storefront checkout attempt; stops a retried checkout from creating a second order",
+				"read_only": 1,
+				"no_copy": 1,
+				"unique": 1,
+				"insert_after": "bossco_payment_reference",
+			},
+			{
+				"fieldname": "bossco_confirmation_sent",
+				"fieldtype": "Check",
+				"label": "Confirmation Email Sent",
+				"read_only": 1,
+				"no_copy": 1,
+				"insert_after": "bossco_checkout_key",
+			},
+		],
+		"Sales Invoice": [
+			{
+				"fieldname": "bossco_invoice_emailed",
+				"fieldtype": "Check",
+				"label": "Emailed to Customer (Storefront)",
+				"read_only": 1,
+				"no_copy": 1,
+				"allow_on_submit": 1,
+				"insert_after": "customer_name",
 			},
 		],
 	}

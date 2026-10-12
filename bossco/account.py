@@ -5,7 +5,7 @@ order history and wishlist. All writes go through these methods with explicit ow
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import cint, cstr, flt, validate_email_address
+from frappe.utils import cint, cstr, flt, get_url, validate_email_address
 from frappe.utils.password import check_password, update_password
 
 from bossco.api import ADDRESS_FIELDS, create_address
@@ -15,9 +15,11 @@ from bossco.customers import (
 	get_customer_for_user,
 	validate_address_owner,
 )
+from bossco.orders import get_invoices_by_order, send_template
 from bossco.storefront import get_store_products
 
 MIN_PASSWORD_LENGTH = 8
+MAX_ORDERS_PAGE = 50
 WISHLIST = "Storefront Wishlist Item"
 
 
@@ -36,7 +38,10 @@ def get_session_info():
 		return {"user": None, "csrf_token": None}
 
 	details = frappe.db.get_value(
-		"User", user, ["email", "first_name", "last_name", "full_name", "mobile_no", "user_type"], as_dict=True
+		"User",
+		user,
+		["email", "first_name", "last_name", "full_name", "mobile_no", "user_type"],
+		as_dict=True,
 	)
 	return {
 		"user": {
@@ -90,6 +95,10 @@ def sign_up(first_name, email, password, last_name=None, phone=None):
 	user.insert()
 
 	ensure_customer_for_user(user.name)
+	if frappe.get_cached_doc("Storefront Settings").send_welcome_email:
+		frappe.enqueue(
+			"bossco.account.send_welcome_email", queue="short", user=user.name, enqueue_after_commit=True
+		)
 	frappe.local.login_manager.login_as(user.name)
 	return get_session_info()
 
@@ -103,15 +112,60 @@ def logout():
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=5, seconds=60 * 60)
 def forgot_password(email):
-	"""Email a reset link (Frappe's /update-password page). Same answer whether or not the account exists."""
+	"""Email a reset link. Same answer, and no extra delay, whether or not the account exists.
+
+	The key is Frappe's own (User.reset_password stores only its hash and when it was made); the
+	link opens the storefront's #reset-password page, which sends the key and new password to
+	Frappe's `frappe.core.doctype.user.user.update_password`. That checks the key, its expiry and
+	the password policy, exactly as Frappe's /update-password page does.
+	"""
 	email = cstr(email).strip().lower()
 	user = frappe.db.get_value("User", {"name": email, "enabled": 1, "user_type": "Website User"})
 	if user:
-		try:
-			frappe.get_doc("User", user).reset_password(send_email=True)
-		except Exception:
-			frappe.log_error(title="Storefront password reset email failed")
-	return {"message": _("If an account exists for {0}, we've emailed a link to reset the password.").format(email)}
+		frappe.enqueue(
+			"bossco.account.send_password_reset", queue="short", user=user, enqueue_after_commit=True
+		)
+	return {
+		"message": _("If an account exists for {0}, we've emailed a link to reset the password.").format(
+			email
+		)
+	}
+
+
+def send_password_reset(user):
+	user_doc = frappe.get_doc("User", user)
+	key = user_doc.reset_password(send_email=False).split("key=", 1)[1]
+	expiry = cint(frappe.db.get_single_value("System Settings", "reset_password_link_expiry_duration"))
+	send_template(
+		"Storefront Password Reset",
+		user_doc.email,
+		{
+			"first_name": user_doc.first_name or "",
+			"link": get_url(f"/#reset-password?key={key}"),
+			"expires_in": f"{expiry // 3600} hours"
+			if expiry >= 3600
+			else f"{max(expiry // 60, 1)} minutes"
+			if expiry
+			else "",
+			"store_name": frappe.get_cached_doc("Storefront Settings").store_name,
+		},
+		reference=("User", user),
+		now=True,
+	)
+
+
+def send_welcome_email(user):
+	user_doc = frappe.get_doc("User", user)
+	send_template(
+		"Storefront Welcome",
+		user_doc.email,
+		{
+			"first_name": user_doc.first_name or "",
+			"store_name": frappe.get_cached_doc("Storefront Settings").store_name,
+			"shop_url": get_url("/"),
+		},
+		reference=("User", user),
+	)
 
 
 # Profile
@@ -235,7 +289,7 @@ def delete_address(name):
 
 
 @frappe.whitelist()
-def get_orders():
+def get_orders(start=0, limit=20):
 	customer, _contact = get_customer_for_user(frappe.session.user)
 	if not customer:
 		return []
@@ -257,10 +311,12 @@ def get_orders():
 			"bossco_payment_reference",
 		],
 		order_by="creation desc",
-		limit=50,
+		start=cint(start),
+		limit=min(cint(limit) or 20, MAX_ORDERS_PAGE),
 	)
 	if not orders:
 		return []
+	invoices = get_invoices_by_order([order.name for order in orders])
 
 	items = frappe.get_all(
 		"Sales Order Item",
@@ -268,7 +324,9 @@ def get_orders():
 		fields=["parent", "item_code", "item_name", "qty", "rate", "amount", "image"],
 		order_by="idx asc",
 	)
-	addresses = get_address_lines([order.shipping_address_name for order in orders if order.shipping_address_name])
+	addresses = get_address_lines(
+		[order.shipping_address_name for order in orders if order.shipping_address_name]
+	)
 	items_by_order = {}
 	for item in items:
 		items_by_order.setdefault(item.parent, []).append(
@@ -294,9 +352,28 @@ def get_orders():
 			"paid": flt(order.advance_paid) >= flt(order.grand_total) > 0,
 			"shippingAddress": addresses.get(order.shipping_address_name, ""),
 			"items": items_by_order.get(order.name, []),
+			"invoices": invoices.get(order.name, []),
 		}
 		for order in orders
 	]
+
+
+@frappe.whitelist()
+def download_invoice(name):
+	"""PDF of one of the shopper's own submitted Sales Invoices."""
+	customer, _contact = get_customer_for_user(frappe.session.user)
+	invoice = frappe.db.get_value(
+		"Sales Invoice", {"name": cstr(name), "docstatus": 1}, ["name", "customer"], as_dict=True
+	)
+	if not customer or not invoice or invoice.customer != customer:
+		frappe.throw(_("Invoice not found"), frappe.PermissionError)
+
+	print_format = frappe.get_cached_doc("Storefront Settings").invoice_print_format or None
+	frappe.local.response.filename = f"{invoice.name}.pdf"
+	frappe.local.response.filecontent = frappe.get_print(
+		"Sales Invoice", invoice.name, print_format=print_format, as_pdf=True, no_letterhead=0
+	)
+	frappe.local.response.type = "pdf"
 
 
 def get_address_lines(names):
@@ -308,7 +385,9 @@ def get_address_lines(names):
 	)
 	return {
 		row.name: ", ".join(
-			filter(None, [row.address_line1, row.address_line2, row.city, row.state, row.pincode, row.country])
+			filter(
+				None, [row.address_line1, row.address_line2, row.city, row.state, row.pincode, row.country]
+			)
 		)
 		for row in rows
 	}
@@ -334,7 +413,9 @@ def get_order_status(order):
 
 @frappe.whitelist()
 def get_wishlist():
-	return frappe.get_all(WISHLIST, filters={"user": frappe.session.user}, pluck="item_code", order_by="creation asc")
+	return frappe.get_all(
+		WISHLIST, filters={"user": frappe.session.user}, pluck="item_code", order_by="creation asc"
+	)
 
 
 @frappe.whitelist(methods=["POST"])

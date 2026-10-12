@@ -1,0 +1,180 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-10-12 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_name",
+  "status",
+  "column_break_item",
+  "user",
+  "reviewer_name",
+  "customer",
+  "review_section",
+  "rating",
+  "title",
+  "comment",
+  "purchase_section",
+  "verified_purchase",
+  "sales_order",
+  "column_break_purchase",
+  "helpful_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nPublished\nRejected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_item",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "reviewer_name",
+   "fieldtype": "Data",
+   "label": "Shown As",
+   "description": "Name displayed with the review"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1
+  },
+  {
+   "fieldname": "review_section",
+   "fieldtype": "Section Break",
+   "label": "Review"
+  },
+  {
+   "fieldname": "rating",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Rating (1-5)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "length": 120
+  },
+  {
+   "fieldname": "comment",
+   "fieldtype": "Small Text",
+   "label": "Comment",
+   "reqd": 1
+  },
+  {
+   "fieldname": "purchase_section",
+   "fieldtype": "Section Break",
+   "label": "Purchase"
+  },
+  {
+   "default": "0",
+   "fieldname": "verified_purchase",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Verified Purchase",
+   "read_only": 1,
+   "description": "Set by the server when the customer has a submitted Sales Order for this item"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_purchase",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "helpful_count",
+   "fieldtype": "Int",
+   "label": "Helpful Votes",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-12 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bossco",
+ "name": "Storefront Review",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "color": "Orange",
+   "title": "Pending"
+  },
+  {
+   "color": "Green",
+   "title": "Published"
+  },
+  {
+   "color": "Red",
+   "title": "Rejected"
+  }
+ ],
+ "title_field": "title",
+ "track_changes": 1
+}

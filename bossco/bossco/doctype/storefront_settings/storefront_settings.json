@@ -1,0 +1,141 @@
+{
+ "actions": [],
+ "creation": "2026-10-12 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "store_name",
+  "announcement",
+  "reviews_section",
+  "require_verified_purchase",
+  "auto_publish_reviews",
+  "emails_section",
+  "send_order_confirmation",
+  "send_order_updates",
+  "send_welcome_email",
+  "column_break_emails",
+  "send_invoice_email",
+  "invoice_print_format",
+  "invoices_section",
+  "invoice_paid_orders",
+  "invoice_on_delivery"
+ ],
+ "fields": [
+  {
+   "default": "Bossco",
+   "fieldname": "store_name",
+   "fieldtype": "Data",
+   "label": "Store Name",
+   "description": "Used in emails and the storefront header",
+   "reqd": 1
+  },
+  {
+   "fieldname": "announcement",
+   "fieldtype": "Data",
+   "label": "Announcement Bar",
+   "description": "Short text shown above the storefront header. Leave empty to hide it."
+  },
+  {
+   "fieldname": "reviews_section",
+   "fieldtype": "Section Break",
+   "label": "Reviews"
+  },
+  {
+   "default": "1",
+   "fieldname": "require_verified_purchase",
+   "fieldtype": "Check",
+   "label": "Only Customers Who Bought the Product Can Review It"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_publish_reviews",
+   "fieldtype": "Check",
+   "label": "Publish Reviews Without Moderation",
+   "description": "When unticked, new reviews stay Pending until a Sales Manager publishes them"
+  },
+  {
+   "fieldname": "emails_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Emails",
+   "description": "Sent through the default outgoing Email Account using the Storefront Email Templates"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_order_confirmation",
+   "fieldtype": "Check",
+   "label": "Order Confirmation"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_order_updates",
+   "fieldtype": "Check",
+   "label": "Shipped and Cancelled Updates"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_welcome_email",
+   "fieldtype": "Check",
+   "label": "Welcome Email on Sign Up"
+  },
+  {
+   "fieldname": "column_break_emails",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_invoice_email",
+   "fieldtype": "Check",
+   "label": "Email Invoice PDF"
+  },
+  {
+   "fieldname": "invoice_print_format",
+   "fieldtype": "Link",
+   "label": "Invoice Print Format",
+   "options": "Print Format",
+   "description": "Leave empty for the Sales Invoice default"
+  },
+  {
+   "fieldname": "invoices_section",
+   "fieldtype": "Section Break",
+   "label": "Invoices"
+  },
+  {
+   "default": "1",
+   "fieldname": "invoice_paid_orders",
+   "fieldtype": "Check",
+   "label": "Invoice Prepaid Orders Right Away",
+   "description": "Card / UPI orders get a submitted Sales Invoice, with the payment allocated, once the payment is recorded"
+  },
+  {
+   "default": "1",
+   "fieldname": "invoice_on_delivery",
+   "fieldtype": "Check",
+   "label": "Invoice Cash on Delivery Orders When Shipped",
+   "description": "Creates the Sales Invoice from the Delivery Note when it is submitted"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-12 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bossco",
+ "name": "Storefront Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Sales Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

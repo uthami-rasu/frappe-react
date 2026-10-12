@@ -1,0 +1,223 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-10-12 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "enabled",
+  "placement",
+  "priority",
+  "column_break_main",
+  "audience",
+  "valid_from",
+  "valid_upto",
+  "content_section",
+  "description",
+  "image",
+  "column_break_content",
+  "cta_label",
+  "cta_link",
+  "discount_section",
+  "coupon_code",
+  "max_uses_per_customer",
+  "column_break_discount",
+  "discount_summary",
+  "targeting_section",
+  "item_group",
+  "item_code",
+  "popup_section",
+  "popup_frequency",
+  "popup_delay"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1,
+   "length": 120
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "default": "Home Banner",
+   "fieldname": "placement",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Placement",
+   "options": "Home Banner\nPopup\nProduct Page",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "priority",
+   "fieldtype": "Int",
+   "label": "Priority",
+   "description": "Higher numbers are shown first"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Everyone",
+   "fieldname": "audience",
+   "fieldtype": "Select",
+   "label": "Show To",
+   "options": "Everyone\nGuests\nSigned-in Customers\nNew Customers",
+   "description": "New Customers = signed in with no submitted orders yet"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Datetime",
+   "label": "Show From"
+  },
+  {
+   "fieldname": "valid_upto",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Show Until",
+   "description": "The offer also stops showing when its coupon or pricing rule expires or runs out"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "column_break_content",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Shop now",
+   "fieldname": "cta_label",
+   "fieldtype": "Data",
+   "label": "Button Label"
+  },
+  {
+   "fieldname": "cta_link",
+   "fieldtype": "Data",
+   "label": "Button Link",
+   "description": "A storefront route such as #honey, #honey?category=Honey or #product/acacia-gold-honey. Leave empty to link to the targeted product or category."
+  },
+  {
+   "fieldname": "discount_section",
+   "fieldtype": "Section Break",
+   "label": "Discount"
+  },
+  {
+   "fieldname": "coupon_code",
+   "fieldtype": "Link",
+   "label": "Coupon Code",
+   "options": "Coupon Code",
+   "description": "Discount, minimum order value, validity and total uses come from this Coupon Code and its Pricing Rule, and are checked again at checkout. Set Maximum Use on the coupon."
+  },
+  {
+   "default": "0",
+   "fieldname": "max_uses_per_customer",
+   "fieldtype": "Int",
+   "label": "Uses per Customer",
+   "description": "0 = no per-customer limit"
+  },
+  {
+   "fieldname": "column_break_discount",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "discount_summary",
+   "fieldtype": "Data",
+   "label": "Discount",
+   "read_only": 1,
+   "description": "Read from the Pricing Rule when saved"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "targeting_section",
+   "fieldtype": "Section Break",
+   "label": "Product Targeting"
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "options": "Item Group",
+   "description": "Product Page offers show on products in this group (and its sub-groups)"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item"
+  },
+  {
+   "depends_on": "eval:doc.placement=='Popup'",
+   "fieldname": "popup_section",
+   "fieldtype": "Section Break",
+   "label": "Popup"
+  },
+  {
+   "default": "Once per day",
+   "fieldname": "popup_frequency",
+   "fieldtype": "Select",
+   "label": "Show Popup",
+   "options": "Once\nOnce per day\nOnce per visit"
+  },
+  {
+   "default": "4",
+   "fieldname": "popup_delay",
+   "fieldtype": "Int",
+   "label": "Delay (seconds)"
+  }
+ ],
+ "image_field": "image",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-12 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bossco",
+ "name": "Storefront Offer",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "priority",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}
