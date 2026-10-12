@@ -57,7 +57,8 @@ app_license = "mit"
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+# The React storefront is built into www/shop.html (see frontend/vite.config.ts)
+home_page = "shop"
 
 # website user home page (by Role)
 # role_home_page = {
@@ -83,7 +84,8 @@ app_license = "mit"
 # ------------
 
 # before_install = "bossco.install.before_install"
-# after_install = "bossco.install.after_install"
+after_install = "bossco.install.after_install"
+after_migrate = "bossco.install.after_migrate"
 
 # Uninstallation
 # ------------
@@ -137,13 +139,11 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Item": {
+		"validate": "bossco.storefront.set_store_slug",
+	}
+}
 
 # Scheduled Tasks
 # ---------------
