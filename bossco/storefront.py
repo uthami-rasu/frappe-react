@@ -139,11 +139,14 @@ def get_prices(item_codes, price_list):
 
 def get_available_stock(item_codes):
 	"""Actual minus reserved quantity across all warehouses."""
-	rows = frappe.get_all(
-		"Bin",
-		filters={"item_code": ("in", item_codes)},
-		fields=["item_code", "sum(actual_qty) as actual_qty", "sum(reserved_qty) as reserved_qty"],
-		group_by="item_code",
+	if not item_codes:
+		return {}
+	# plain SQL: Frappe 16 no longer accepts "sum(...)" strings in get_all fields
+	rows = frappe.db.sql(
+		"""select item_code, sum(actual_qty) as actual_qty, sum(reserved_qty) as reserved_qty
+		from `tabBin` where item_code in %(item_codes)s group by item_code""",
+		{"item_codes": item_codes},
+		as_dict=True,
 	)
 	return {row.item_code: flt(row.actual_qty) - flt(row.reserved_qty) for row in rows}
 

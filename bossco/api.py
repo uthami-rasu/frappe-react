@@ -13,7 +13,7 @@ from bossco.customers import (
 	validate_address_owner,
 )
 from bossco.offers import CouponError, resolve_coupon, validate_coupon_for_customer
-from bossco.payments import PAYMENT_METHODS, mock_charge, parse_payment, record_payment
+from bossco.payments import PAYMENT_METHODS, mock_charge, parse_payment, record_payment, system_user
 from bossco.storefront import (
 	get_bought_together,
 	get_filter_options,
@@ -216,7 +216,8 @@ def get_cart_quote(items, shipping_method="free", coupon_code=None):
 			)
 			sales_order.flags.name_set = True  # skip the naming series, nothing is kept
 			sales_order.name = f"bossco-quote-{frappe.generate_hash(length=10)}"
-			sales_order.insert()
+			with system_user():  # ERPNext prices items with Desk permissions the shopper lacks
+				sales_order.insert()
 			quote = summarize_order(sales_order)
 			if coupon and not coupon_applied(sales_order, coupon):
 				coupon_message = coupon_not_applied_message(coupon, quote["subtotal"])
@@ -306,7 +307,8 @@ def place_order(
 		checkout_key=checkout_key,
 	)
 	try:
-		sales_order.insert()
+		with system_user():  # ERPNext prices items with Desk permissions the shopper lacks
+			sales_order.insert()
 	except frappe.UniqueValidationError:
 		# the same checkout was submitted twice at once; the first one won
 		frappe.db.rollback()
@@ -323,7 +325,8 @@ def place_order(
 		sales_order.bossco_payment_reference = mock_charge(
 			payment, sales_order.rounded_total or sales_order.grand_total
 		)
-	sales_order.submit()
+	with system_user():
+		sales_order.submit()
 	if payment.method != "cod":
 		payment_entry = record_payment(sales_order, payment, sales_order.bossco_payment_reference)
 

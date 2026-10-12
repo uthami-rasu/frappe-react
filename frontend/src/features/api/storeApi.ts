@@ -243,8 +243,9 @@ export const storeApi = createApi({
       query: post('frappe.www.contact.send_message'),
       transformErrorResponse: errorMessage,
     }),
-    subscribeNewsletter: build.mutation<unknown, { email: string }>({
-      query: post('frappe.email.doctype.newsletter.newsletter.subscribe'),
+    subscribeNewsletter: build.mutation<{ confirmed: boolean; message: string }, { email: string }>({
+      query: post('bossco.newsletter.subscribe'),
+      transformResponse: unwrap<{ confirmed: boolean; message: string }>,
       transformErrorResponse: errorMessage,
     }),
 

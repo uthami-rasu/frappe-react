@@ -6,15 +6,15 @@ const rightNuts = leftNuts // same artwork, rotated
 
 export function NewsletterSection() {
   const [subscribe, { isLoading }] = useSubscribeNewsletterMutation()
-  // Frappe's newsletter endpoint emails a confirmation link; the address joins the Email Group once confirmed
+  // bossco.newsletter.subscribe: double opt-in email on Frappe 15, direct subscription on 16
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formElement = event.currentTarget
     const email = String(new FormData(formElement).get('email') ?? '').trim()
     try {
-      await subscribe({ email }).unwrap()
+      const result = await subscribe({ email }).unwrap()
       formElement.reset()
-      toast.success('Almost there! 📩', { description: `Check ${email} and confirm your subscription.` })
+      toast.success(result.confirmed ? 'Subscribed! 🍯' : 'Almost there! 📩', { description: result.message })
     } catch (error) {
       toast.error('Could not subscribe', { description: typeof error === 'string' ? error : 'Please try again.' })
     }

@@ -81,9 +81,12 @@ written to Error Log (`Storefront email failed: …`) and never affects the orde
 gets at most one confirmation and each invoice one email (flags `bossco_confirmation_sent`,
 `bossco_invoice_emailed`).
 
-Newsletter sign-up uses Frappe's own `newsletter.subscribe` (double opt-in email into the default Email
-Group) and the contact form uses `frappe.www.contact.send_message` (saved as a Communication; set
-*Contact Us Settings → Forward To Email* to get notified).
+Newsletter sign-up (`bossco.newsletter.subscribe`) uses Frappe's Newsletter module on Frappe 15
+(double opt-in email) and, on Frappe 16 where that module was removed from core, adds the address
+straight to the *Storefront Subscribers* Email Group. The contact form uses
+`frappe.www.contact.send_message` (saved as a Communication; set *Contact Us Settings → Forward To
+Email* to get notified). Frappe 16 ships Contact Us Settings disabled; the app enables it on
+install/migrate.
 
 Password-reset link lifetime: *System Settings → Reset Password Link Expiry Duration*.
 
@@ -163,7 +166,14 @@ CI=1 bench --site <site> run-tests --app bossco      # needs the demo catalog; r
 cd apps/bossco/frontend && yarn test && yarn lint && yarn typecheck
 ```
 
-## 8. Operational notes
+## 8. Frappe / ERPNext versions
+
+The app is tested on **version-15** (Frappe 15.87, ERPNext 15.91) and **version-16** (Frappe 16.51,
+ERPNext 16.50). Both backend and browser test rounds pass on each. Version-16 self-hosting needs
+**Python 3.14** and **Node 24** (Frappe Cloud provides these); the only code paths that differ by
+version are isolated in `bossco/newsletter.py` and `bossco/account.py` (`send_password_reset`).
+
+## 9. Operational notes
 
 - Rate limits (per IP): sign up 5/h, login 10/10 min, forgot password 5/h, place order 20/h, reviews
   10/h, cart quote 120/min. Shoppers see "too many requests".

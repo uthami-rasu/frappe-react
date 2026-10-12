@@ -89,7 +89,9 @@ class StorefrontTestCase(FrappeTestCase):
 		# Capture emails instead of sending: sending (now=True) commits, which would bypass the
 		# rollback that keeps these tests from leaving data on the site.
 		cls.sent = []
-		cls.mail_patch = patch("frappe.sendmail", side_effect=lambda **kwargs: cls.sent.append(kwargs))
+		cls.mail_patch = patch(
+			"frappe.sendmail", side_effect=lambda *args, **kwargs: cls.sent.append({"args": args, **kwargs})
+		)
 		cls.mail_patch.start()
 		cls.addClassCleanup(cls.mail_patch.stop)
 
@@ -340,6 +342,26 @@ class TestCartAndOffers(StorefrontTestCase):
 		self.assertEqual(len(offers.get_active_offers()), 1)
 		frappe.db.set_value("Coupon Code", coupon.name, "used", 1)
 		self.assertEqual(offers.get_active_offers(), [])
+
+
+class TestNewsletter(StorefrontTestCase):
+	def test_subscribe_works_without_the_core_newsletter_module(self):
+		from bossco import newsletter
+
+		frappe.set_user("Guest")
+		self.assertRaises(frappe.ValidationError, newsletter.subscribe, "not-an-email")
+		result = newsletter.subscribe("Reader@Example.com")
+		self.assertIn("message", result)
+		if not newsletter.core_newsletter():
+			self.assertTrue(result["confirmed"])
+			self.assertTrue(
+				frappe.db.exists(
+					"Email Group Member",
+					{"email": "reader@example.com", "email_group": newsletter.EMAIL_GROUP},
+				)
+			)
+			newsletter.subscribe("reader@example.com")  # a repeat must not duplicate the member
+			self.assertEqual(frappe.db.count("Email Group Member", {"email": "reader@example.com"}), 1)
 
 
 class TestAccount(StorefrontTestCase):

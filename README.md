@@ -72,9 +72,9 @@ Vite proxies `/api`, `/files`, `/assets`, `/app` and `/login` to Frappe, so the 
 
 ### Deploying on Frappe Cloud
 
-1. Push this app to GitHub and add it to a bench group with Frappe + ERPNext (version-15).
+1. Push this app to GitHub and add it to a bench group with Frappe + ERPNext (version-15 or version-16; both are tested, see docs/SETUP.md §8).
 2. The build runs `yarn install` (root `postinstall` installs `frontend/`) and `bench build`, which runs the root `build` script. You don't need to commit any build output.
-3. Vite 8 needs **Node 20.19+ or 22.12+**. Set the bench group's Node version accordingly.
+3. Vite 8 needs **Node 20.19+ or 22.12+** (a version-16 bench uses Node 24, which is fine). Set the bench group's Node version accordingly.
 4. Install the app on the site. The custom fields are created automatically.
 
 ### Contributing

@@ -8,12 +8,22 @@ def after_install():
 	make_custom_fields()
 	make_email_templates()
 	set_settings_defaults()
+	enable_contact_form()
 
 
 def after_migrate():
 	make_custom_fields()
 	make_email_templates()
 	set_settings_defaults()
+	enable_contact_form()
+
+
+def enable_contact_form():
+	"""The storefront's contact page posts to Frappe's contact endpoint, which Frappe 16 ships
+	disabled (Contact Us Settings → Disabled). Enable it so messages are saved and forwarded."""
+	meta = frappe.get_meta("Contact Us Settings")
+	if meta.has_field("is_disabled") and frappe.db.get_single_value("Contact Us Settings", "is_disabled"):
+		frappe.db.set_single_value("Contact Us Settings", "is_disabled", 0)
 
 
 def set_settings_defaults():

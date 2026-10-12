@@ -134,7 +134,9 @@ def forgot_password(email):
 
 def send_password_reset(user):
 	user_doc = frappe.get_doc("User", user)
-	key = user_doc.reset_password(send_email=False).split("key=", 1)[1]
+	# Frappe 16 renamed User.reset_password to _reset_password (same behaviour)
+	make_reset_link = getattr(user_doc, "reset_password", None) or user_doc._reset_password
+	key = make_reset_link(send_email=False).split("key=", 1)[1]
 	expiry = cint(frappe.db.get_single_value("System Settings", "reset_password_link_expiry_duration"))
 	send_template(
 		"Storefront Password Reset",
