@@ -199,6 +199,22 @@ class TestCheckout(StorefrontTestCase):
 
 
 class TestInvoices(StorefrontTestCase):
+	def test_cod_order_is_invoiced_and_emailed_on_placement(self):
+		order = self.order()
+		frappe.set_user("Administrator")
+		self.sent.clear()
+		orders.after_order_placed(order["name"])
+		invoices = orders.get_order_invoices(order["name"])
+		self.assertEqual(len(invoices), 1)
+		self.assertGreater(flt(frappe.db.get_value("Sales Invoice", invoices[0], "outstanding_amount")), 0)
+		orders.email_invoice(invoices[0])
+		invoice_mail = [mail for mail in self.sent if mail["reference_doctype"] == "Sales Invoice"]
+		self.assertEqual(len(invoice_mail), 1)
+		self.assertIn("payable on delivery", invoice_mail[0]["message"])
+		self.assertTrue(frappe.db.get_value("Sales Invoice", invoices[0], "bossco_invoice_emailed"))
+		orders.after_order_placed(order["name"])  # a retry must not add a second invoice
+		self.assertEqual(len(orders.get_order_invoices(order["name"])), 1)
+
 	def test_prepaid_order_is_invoiced_once(self):
 		order = self.order(payment=CARD)
 		self.assertTrue(order["paid"])

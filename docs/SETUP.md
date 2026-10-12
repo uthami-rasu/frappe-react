@@ -17,7 +17,8 @@ Desk → **Storefront Settings** (single DocType, module Bossco).
 | Order Confirmation / Shipped and Cancelled Updates / Welcome Email / Email Invoice PDF | on | Customer emails (see §2) |
 | Invoice Print Format | empty | Print Format for the invoice PDF (empty = Sales Invoice default) |
 | Invoice Prepaid Orders Right Away | on | Card/UPI orders get a submitted Sales Invoice with the payment allocated |
-| Invoice Cash on Delivery Orders When Shipped | on | A Sales Invoice is made from the Delivery Note when it is submitted |
+| Invoice Cash on Delivery Orders Right Away | on | COD orders get an (unpaid) Sales Invoice at order time, emailed with the amount payable on delivery |
+| Invoice Cash on Delivery Orders When Shipped | on | Orders not invoiced yet get a Sales Invoice from the Delivery Note when it is submitted |
 
 Defaults are written on install and migrate (`bossco.install.set_settings_defaults`).
 
@@ -123,9 +124,15 @@ creates two demo offers (WELCOME10, HONEY15).
 - `place_order` takes a per-attempt `checkout_key` (unique custom field on Sales Order). A retried or
   double-submitted checkout returns the existing order instead of creating another.
 - Payments are still the mock gateway (`bossco/payments.py`); card/UPI orders get a Payment Entry.
-- Invoicing (`bossco/orders.py`, background jobs, idempotent): prepaid orders are invoiced right after
-  the order, with the advance allocated; COD orders are invoiced from the Delivery Note on submit.
-  Both can be turned off in Storefront Settings when invoices are made by hand.
+- Invoicing (`bossco/orders.py`, background jobs, idempotent): by default every order is invoiced right
+  after it is placed (prepaid with the advance allocated; COD unpaid, payable on delivery) and the
+  invoice is emailed. Orders not invoiced at placement are invoiced from the Delivery Note on submit.
+  All three switches live in Storefront Settings for stores that invoice by hand.
+- Invoice PDFs are rendered by wkhtmltopdf, which fetches the print stylesheet from the site URL, so
+  `host_name` in `site_config.json` must be a URL the server itself can reach
+  (`bench --site <site> set-config host_name https://shop.example.com`; on a dev bench
+  `http://127.0.0.1:8000`). If the PDF fails, the email still goes out with a download link and
+  the error is logged as "Storefront invoice PDF failed".
 - Customers download their invoices from *My Account → Orders* (`bossco.account.download_invoice`,
   owner-checked).
 

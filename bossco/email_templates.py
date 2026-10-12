@@ -39,12 +39,13 @@ TEMPLATES = {
 		+ ORDER_TABLE
 		+ BUTTON.format(href="{{ orders_url }}", label="View your orders"),
 	},
-	# invoice (name, customer, ...), order, total, orders_url — the PDF is attached
+	# invoice (name, customer, ...), order, total, due (amount payable, or None), attached, orders_url
 	"Storefront Invoice": {
 		"subject": "Invoice {{ invoice.name }} for your {{ store_name }} order",
 		"body": """<h2 style="margin:0 0 8px;font-size:22px">Your invoice</h2>
-<p style="margin:0 0 16px;color:#4f5b55">Invoice <b>{{ invoice.name }}</b>{% if order %} for order <b>{{ order }}</b>{% endif %} is attached as a PDF. Total: <b>{{ total }}</b>.</p>
-<p style="margin:0 0 20px;color:#4f5b55">You can also download it any time from your order history.</p>"""
+<p style="margin:0 0 12px;color:#4f5b55">Invoice <b>{{ invoice.name }}</b>{% if order %} for order <b>{{ order }}</b>{% endif %}{% if attached %} is attached as a PDF{% endif %}. Total: <b>{{ total }}</b>.</p>
+{% if due %}<p style="margin:0 0 12px;color:#4f5b55"><b>Amount payable on delivery: {{ due }}</b></p>{% else %}<p style="margin:0 0 12px;color:#4f5b55">Paid in full &mdash; thank you.</p>{% endif %}
+<p style="margin:0 0 20px;color:#4f5b55">You can download the invoice any time from your order history.</p>"""
 		+ BUTTON.format(href="{{ orders_url }}", label="Order history"),
 	},
 	# first_name, link, expires_in
@@ -78,3 +79,15 @@ def make_email_templates():
 				"response_html": WRAPPER.replace("{body}", template["body"]),
 			}
 		).insert(ignore_permissions=True)
+
+
+def reset_email_templates():
+	"""Overwrite the Storefront templates with the shipped versions (discards Desk edits).
+
+	bench --site <site> execute bossco.email_templates.reset_email_templates
+	"""
+	for name in TEMPLATES:
+		if frappe.db.exists("Email Template", name):
+			frappe.delete_doc("Email Template", name, ignore_permissions=True, force=True)
+	make_email_templates()
+	frappe.db.commit()

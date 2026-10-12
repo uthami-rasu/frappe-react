@@ -32,10 +32,8 @@ def get_settings():
 def after_order_placed(sales_order):
 	send_order_confirmation(sales_order)
 	settings = get_settings()
-	if (
-		settings.invoice_paid_orders
-		and flt(frappe.db.get_value("Sales Order", sales_order, "advance_paid")) > 0
-	):
+	paid = flt(frappe.db.get_value("Sales Order", sales_order, "advance_paid")) > 0
+	if (paid and settings.invoice_paid_orders) or (not paid and settings.invoice_cod_on_order):
 		make_invoice_for_order(sales_order)
 
 
@@ -110,6 +108,7 @@ def email_invoice(sales_invoice):
 
 	settings = get_settings()
 	print_format = settings.invoice_print_format or None
+	outstanding = flt(frappe.db.get_value("Sales Invoice", sales_invoice, "outstanding_amount"))
 	context = {
 		"invoice": invoice,
 		"order": orders[0] if orders else None,
@@ -117,18 +116,32 @@ def email_invoice(sales_invoice):
 		"total": frappe.utils.fmt_money(
 			invoice.rounded_total or invoice.grand_total, currency=invoice.currency
 		),
+		"due": frappe.utils.fmt_money(outstanding, currency=invoice.currency) if outstanding > 0 else None,
 		"orders_url": get_url("/#account/orders"),
+		"attached": True,
 	}
+	# The PDF needs wkhtmltopdf to reach the site (host_name in site config). If that fails the
+	# customer still gets the email, with a link to download the invoice from their account.
+	attachments = []
+	try:
+		attachments.append(
+			frappe.attach_print(
+				"Sales Invoice", sales_invoice, file_name=sales_invoice, print_format=print_format
+			)
+		)
+	except Exception:
+		context["attached"] = False
+		frappe.log_error(
+			title="Storefront invoice PDF failed",
+			reference_doctype="Sales Invoice",
+			reference_name=sales_invoice,
+		)
 	sent = send_template(
 		"Storefront Invoice",
 		recipient,
 		context,
 		reference=("Sales Invoice", sales_invoice),
-		attachments=[
-			frappe.attach_print(
-				"Sales Invoice", sales_invoice, file_name=sales_invoice, print_format=print_format
-			)
-		],
+		attachments=attachments,
 	)
 	if sent:
 		frappe.db.set_value(

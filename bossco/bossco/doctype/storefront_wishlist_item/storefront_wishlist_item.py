@@ -10,4 +10,6 @@ class StorefrontWishlistItem(Document):
 
 
 def on_doctype_update():
-	frappe.db.add_unique("Storefront Wishlist Item", ["user", "item_code"], constraint_name="unique_user_item")
+	frappe.db.add_unique(
+		"Storefront Wishlist Item", ["user", "item_code"], constraint_name="unique_user_item"
+	)

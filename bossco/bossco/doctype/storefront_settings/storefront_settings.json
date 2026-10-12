@@ -18,6 +18,7 @@
   "invoice_print_format",
   "invoices_section",
   "invoice_paid_orders",
+  "invoice_cod_on_order",
   "invoice_on_delivery"
  ],
  "fields": [
@@ -104,14 +105,21 @@
    "fieldname": "invoice_paid_orders",
    "fieldtype": "Check",
    "label": "Invoice Prepaid Orders Right Away",
-   "description": "Card / UPI orders get a submitted Sales Invoice, with the payment allocated, once the payment is recorded"
+   "description": "Card / UPI orders get a submitted Sales Invoice, with the payment allocated, as soon as the order is placed"
+  },
+  {
+   "default": "1",
+   "fieldname": "invoice_cod_on_order",
+   "fieldtype": "Check",
+   "label": "Invoice Cash on Delivery Orders Right Away",
+   "description": "The invoice (unpaid, payable on delivery) is created and emailed when the order is placed"
   },
   {
    "default": "1",
    "fieldname": "invoice_on_delivery",
    "fieldtype": "Check",
    "label": "Invoice Cash on Delivery Orders When Shipped",
-   "description": "Creates the Sales Invoice from the Delivery Note when it is submitted"
+   "description": "For orders not invoiced yet, creates the Sales Invoice from the Delivery Note when it is submitted"
   }
  ],
  "issingle": 1,
